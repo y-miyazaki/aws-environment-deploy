@@ -40,6 +40,9 @@ local base = {
   //   task+: { tags+: [{ key: 'Project', value: 'my-project' }] }
   tags: config.helpers.buildTags(prefix, self.name),
 
+  // ALB target group ARN for service registration
+  target_group_arn: '{{ tfstate `module.%s.aws_lb_target_group.this["%s-ecs"].arn` }}' % [config.terraform_modules.alb_target_group, self.name],
+
   // IAM roles — using existing backend roles
   task_role_arn: config.helpers.buildRoleArn(accountId, prefix, 'ecs-batch-role'),
   // NOTE: For production, consider a dedicated execution role per service
@@ -68,6 +71,15 @@ local base = {
   ],
 };
 
+// ─────────────────────────────────────────────────────────────────────────────
+// Customization for different environments (override in env/dev.jsonnet, etc.)
+// ─────────────────────────────────────────────────────────────────────────────
+// Examples:
+//   task+: { cpu: '2048', memory: '4096' }  // Increase resources for production
+//   task+: { container_definitions+: { cpu: 2048, memory: 4096, memory_reservation: 1500 } }
+//   auto_scaling+: { max_capacity: 20, min_capacity: 2 }  // Scale for production
+//   service+: { deployment_configuration+: { maximum_percent: 150 } }
+//
 // ─────────────────────────────────────────────────────────────────────────────
 // Exported configuration object
 // ─────────────────────────────────────────────────────────────────────────────
@@ -99,7 +111,14 @@ local base = {
     name: config.helpers.buildName(prefix, '%s-service' % base.name),
     platform_version: config.service.platform_version,
     propagate_tags: config.service.propagate_tags,
-    target_group_arn: '{{ tfstate `module.alb_backend.aws_lb_target_group.this["%s-ecs"].arn` }}' % base.name,
+    // loadBalancers for ALB integration — registers container with ALB target group
+    load_balancers: [
+      {
+        containerName: config.helpers.buildName(prefix, base.name),
+        containerPort: base.container_port,
+        targetGroupArn: base.target_group_arn,
+      },
+    ],
     // deploymentConfiguration settings
     // Override per environment in env/*.jsonnet:
     //   service+: { deployment_configuration+: { maximum_percent: 100 } }
@@ -113,11 +132,11 @@ local base = {
     network_configuration: {
       awsvpc_configuration: {
         assign_public_ip: 'DISABLED',
-        security_groups: ['{{ tfstate `module.security_group_ecs.aws_security_group.this_name_prefix[0].id` }}'],
+        security_groups: ['{{ tfstate `module.%s.aws_security_group.this_name_prefix[0].id` }}' % config.terraform_modules.security_group],
         subnets: [
-          '{{ tfstate `module.vpc.aws_subnet.private[0].id` }}',
-          '{{ tfstate `module.vpc.aws_subnet.private[1].id` }}',
-          '{{ tfstate `module.vpc.aws_subnet.private[2].id` }}',
+          '{{ tfstate `module.%s.aws_subnet.private[0].id` }}' % config.terraform_modules.vpc,
+          '{{ tfstate `module.%s.aws_subnet.private[1].id` }}' % config.terraform_modules.vpc,
+          '{{ tfstate `module.%s.aws_subnet.private[2].id` }}' % config.terraform_modules.vpc,
         ],
       },
     },

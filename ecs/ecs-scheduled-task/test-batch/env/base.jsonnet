@@ -60,6 +60,15 @@ local batch = {
 };
 
 // ─────────────────────────────────────────────────────────────────────────────
+// Customization for different environments (override in env/dev.jsonnet, etc.)
+// ─────────────────────────────────────────────────────────────────────────────
+// Examples:
+//   task+: { cpu: '2048', memory: '4096' }  // Increase resources for CPU-bound tasks
+//   task+: { container_definitions+: { cpu: 2048, memory: 4096, memory_reservation: 1500 } }
+//   batch+: { command: ['--verbose', '--timeout=300'] }  // Task-specific options
+//   batch+: { schedule_expression: 'cron(0 2 * * ? *)' }  // Override schedule per environment
+//
+// ─────────────────────────────────────────────────────────────────────────────
 // Exported configuration object
 // ─────────────────────────────────────────────────────────────────────────────
 local container_name = config.helpers.buildName(prefix, batch.name);
@@ -103,12 +112,12 @@ local task_definition_family = config.helpers.buildName(prefix, '%s-td' % batch.
         aws_vpc_configuration: {
           assign_public_ip: 'DISABLED',
           security_groups: [
-            '{{ tfstate `module.security_group_ecs.aws_security_group.this_name_prefix[0].id` }}',
+            '{{ tfstate `module.%s.aws_security_group.this_name_prefix[0].id` }}' % config.terraform_modules.security_group,
           ],
           subnets: [
-            '{{ tfstate `module.vpc.aws_subnet.private[0].id` }}',
-            '{{ tfstate `module.vpc.aws_subnet.private[1].id` }}',
-            '{{ tfstate `module.vpc.aws_subnet.private[2].id` }}',
+            '{{ tfstate `module.%s.aws_subnet.private[0].id` }}' % config.terraform_modules.vpc,
+            '{{ tfstate `module.%s.aws_subnet.private[1].id` }}' % config.terraform_modules.vpc,
+            '{{ tfstate `module.%s.aws_subnet.private[2].id` }}' % config.terraform_modules.vpc,
           ],
         },
       },

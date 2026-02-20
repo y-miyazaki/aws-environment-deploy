@@ -57,10 +57,12 @@
       operating_system_family: 'LINUX',
     },
     // containerDefinitions settings
+    // memory_reservation: soft memory limit; typically 30-40% of container memory
+    // Formula: memory * 0.33 (can override in env/*.jsonnet)
     container_definitions: {
       cpu: 1024,
       memory: 3072,
-      memory_reservation: 1024,
+      memory_reservation: 1024,  // ~33% of container memory (3072 * 0.33 ≈ 1024)
       start_timeout: 60,
     },
   },
@@ -69,6 +71,14 @@
   paths: {
     tfstate_bucket: 'base-terraform-state-%s',
     tfstate_file: 'terraform-application.tfstate',
+  },
+
+  // Terraform module references (for tfstate interpolation)
+  // Customize per environment in env/*.jsonnet if modules differ
+  terraform_modules: {
+    alb_target_group: 'alb_backend',
+    security_group: 'security_group_ecs',
+    vpc: 'vpc',
   },
 
   // Helper functions
