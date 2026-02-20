@@ -12,50 +12,35 @@ local accountId = config.accountId;
 local region = config.region;
 
 // ─────────────────────────────────────────────────────────────────────────────
-// Customization settings — update these when copying this template
-// ─────────────────────────────────────────────────────────────────────────────
-local settings = {
-  name: 'test-batch',
-  cluster_suffix: 'recommend-cluster',
-  schedule_expression: 'cron(0 0 * * ? *)',
-  command: [],
-  readonly_root_filesystem: true,
-  task_role_suffix: 'ecs-batch-role',
-  execution_role_suffix: 'recommend-batch-ecs-task-execution-role',
-  events_role_suffix: 'recommend-batch-st-cw-role',
-  image_tag: 'latest',
-};
-
-// ─────────────────────────────────────────────────────────────────────────────
 // Batch-specific settings — modify these when creating a new batch from this template
 // ─────────────────────────────────────────────────────────────────────────────
 local batch = {
-  name: settings.name,
+  name: 'test-batch',
   // ECS cluster to run this scheduled task on
   // NOTE: Using cluster for testing; for production use the dedicated cluster
-  cluster: config.helpers.buildName(prefix, settings.cluster_suffix),
+  cluster: config.helpers.buildName(prefix, 'recommend-cluster'),
 
-  description: 'Scheduled batch: %s' % settings.name,
-  schedule_expression: settings.schedule_expression,  // Daily at 00:00 UTC; adjust per environment in env/*.jsonnet
-  command: settings.command,
-  readonly_root_filesystem: settings.readonly_root_filesystem,
+  description: 'Scheduled batch: test-batch',
+  schedule_expression: 'cron(0 0 * * ? *)',  // Daily at 00:00 UTC; adjust per environment in env/*.jsonnet
+  command: [],
+  readonly_root_filesystem: true,
 
   // IAM roles — using cluster's execution role for testing purposes
   // NOTE: For production, use the dedicated execution role (e.g., backend-ecs-task-execution-role)
-  task_role_arn: config.helpers.buildRoleArn(accountId, prefix, settings.task_role_suffix),
-  execution_role_arn: config.helpers.buildRoleArn(accountId, prefix, settings.execution_role_suffix),
+  task_role_arn: config.helpers.buildRoleArn(accountId, prefix, 'ecs-batch-role'),
+  execution_role_arn: config.helpers.buildRoleArn(accountId, prefix, 'recommend-batch-ecs-task-execution-role'),
 
   // EventBridge IAM role — reusing batch's role for testing purposes
   // NOTE: For production, create a dedicated role via module.ecs_fargate_scheduled_task
   // NOTE: Use role name only (not full ARN) to match ecschedule's internal normalization
-  events_role: config.helpers.buildName(prefix, settings.events_role_suffix),
+  events_role: config.helpers.buildName(prefix, 'recommend-batch-st-cw-role'),
 
   // Image settings — default: ECR repository named after this batch
   // Override image_repository when reusing another service image or using an external image:
   //   image_repository: '123456789012.dkr.ecr.ap-northeast-1.amazonaws.com/other-service'
   //   image_repository: 'public.ecr.aws/nginx/nginx'
   image_repository: '%s.dkr.ecr.%s.amazonaws.com/%s' % [accountId, region, self.name],
-  image_tag: settings.image_tag,
+  image_tag: 'latest',
   // Environment variables injected into the container
   // Override per environment in env/*.jsonnet:
   //   task+: { environment+: [{ name: 'MY_VAR', value: 'value' }] }
