@@ -38,7 +38,9 @@
         "golang.go",
         "windmilleng.vscode-go-autotest",
         "timvaneker.serverless-snippets",
-        "bufbuild.vscode-buf"
+        "bufbuild.vscode-buf",
+        // for Jsonnet environment
+        "grafana.vscode-jsonnet"
       ]
     }
   },

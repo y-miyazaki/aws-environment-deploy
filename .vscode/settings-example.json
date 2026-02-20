@@ -276,6 +276,13 @@
     "editor.defaultFormatter": "esbenp.prettier-vscode"
   },
   // ------------------------------------------------------------
+  // for Jsonnet
+  // ------------------------------------------------------------
+  "[jsonnet]": {
+    "editor.defaultFormatter": "Grafana.vscode-jsonnet",
+    "editor.formatOnSave": true
+  },
+  // ------------------------------------------------------------
   // for Markdown
   //  ------------------------------------------------------------
   "markdownlint.lintWorkspaceGlobs": [
