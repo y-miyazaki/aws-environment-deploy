@@ -7,7 +7,7 @@
 #     -h, --help        Display this help message
 #     -v, --verbose     Enable verbose output
 #     -d, --dry-run     Show what would be done without executing
-#     -r, --region     AWS region to use (default: auto-detected via aws configure get region)
+#     -r, --region      AWS region to use (default: auto-detected via aws configure get region)
 #     -o, --output      Output diagram file (default: aws_architecture_diagram.png)
 #     -f, --format      Output format (png, svg, pdf) (default: png)
 #     --git             Commit and push diagram to git (default: no git operation)

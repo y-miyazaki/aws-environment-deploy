@@ -5,21 +5,16 @@
 //   jsonnet -V ENV=dev -V ACCOUNT_ID=<id> -V AWS_REGION=ap-northeast-1 ecschedule.jsonnet
 //
 // Note: ecschedule does not support --ext-str; deploy.sh renders this file first.
-local env = std.extVar('ENV');
-local configs = {
-  dev: import 'env/dev.jsonnet',
-  qa: import 'env/qa.jsonnet',
-  stg: import 'env/stg.jsonnet',
-  prd: import 'env/prd.jsonnet',
-};
+// Ecschedule configuration for test-batch (EventBridge rules)
+// Usage: ecschedule run --config ecschedule.jsonnet --ext-str ENV=dev \
+//                       --ext-str SCHEDULED_TASK=test-batch \
+//                       --ext-str ACCOUNT_ID=... --ext-str AWS_REGION=...
 
-local config = configs[env];
+local scheduledTaskDef = import '../../templates/scheduled-task-definition.entry.jsonnet';
 
 {
-  batch_name: config.batch_name,
-  cluster: config.cluster,
-  role: config.role,
-  plugins: config.plugins,
-  region: config.region,
-  rules: config.rules,
+  cluster: scheduledTaskDef.base.cluster,
+  plugins: scheduledTaskDef.plugins,
+  region: scheduledTaskDef.region,
+  rules: scheduledTaskDef.rules,
 }
