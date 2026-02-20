@@ -1,6 +1,8 @@
 # aws-environment-deploy
 
-Base repository for managing code outside Terraform (ECS services, ECS scheduled tasks, scripts) in AWS environments
+**Sample repository** for managing code outside Terraform (ECS services, ECS scheduled tasks, scripts) in AWS environments
+
+> **Note**: This is a template/example project. Customize configurations for your production use.
 
 ## 📁 Project Structure
 
