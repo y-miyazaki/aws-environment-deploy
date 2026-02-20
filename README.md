@@ -1,6 +1,6 @@
 # aws-environment-deploy
 
-Base repository for managing code outside Terraform (ECS services, batches, scripts) in AWS environments
+Base repository for managing code outside Terraform (ECS services, ECS scheduled tasks, scripts) in AWS environments
 
 ## 📁 Project Structure
 
@@ -96,6 +96,64 @@ services: {
     prd: import './ecs-service/your-service/env/prd.jsonnet',
   },
 }
+```
+
+## 📅 Creating a New ECS Scheduled Task
+
+### 1. Copy Task Directory
+
+```bash
+cp -r ecs/ecs-scheduled-task/test-batch ecs/ecs-scheduled-task/your-batch
+```
+
+### 2. Edit base.jsonnet
+
+```jsonnet
+local base = {
+  name: 'your-batch',
+  cluster: config.helpers.buildName(prefix, 'batch-cluster'),
+  image_repository: '%s.dkr.ecr.%s.amazonaws.com/%s' % [accountId, region, self.name],
+  command: ['python', 'batch.py'],
+  // ...
+};
+```
+
+### 3. Configure Schedule in ecschedule.jsonnet
+
+```jsonnet
+{
+  batch_name: base.name,
+  cluster: base.cluster,
+  rules: [
+    {
+      name: config.helpers.buildName(prefix, base.name),
+      schedule_expression: 'cron(0 2 * * ? *)',  // Daily at 2:00 AM UTC
+      task_count: 1,
+    },
+  ],
+}
+```
+
+### 4. Deploy Scheduled Task
+
+```bash
+# Verify
+./scripts/terraform/aws_deploy_ecs_scheduled_task.sh \
+  -p ecs/ecs-scheduled-task/your-batch \
+  -e dev \
+  diff
+
+# Deploy
+./scripts/terraform/aws_deploy_ecs_scheduled_task.sh \
+  -p ecs/ecs-scheduled-task/your-batch \
+  -e dev \
+  apply
+
+# Manual trigger
+./scripts/terraform/aws_deploy_ecs_scheduled_task.sh \
+  -p ecs/ecs-scheduled-task/your-batch \
+  -e dev \
+  run -n dev-your-batch
 ```
 
 ## ⚙️ Configuration Reference
