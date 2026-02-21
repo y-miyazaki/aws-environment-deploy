@@ -36,7 +36,7 @@ source "${SCRIPT_DIR}/../lib/all.sh"
 ACTION="deploy"
 ACCOUNT_ID=""
 AWS_REGION="${AWS_REGION:-}"
-SERVICE_NAME=""
+NAME=""
 ENV="dev"
 SERVICE_PATH=""
 
@@ -158,7 +158,7 @@ function parse_arguments {
 #   ACCOUNT_ID - AWS account ID
 #   AWS_REGION - AWS region
 #   ENV        - Target environment name
-#   SERVICE_NAME - ECS service name
+#   NAME - ECS service name
 #
 # Returns:
 #   Exits with status 0 if no changes detected, non-zero on failure
@@ -172,24 +172,26 @@ function deploy_service {
 
     # Check for changes in task definition or service definition
     # Empty stdout = no changes, non-zero exit = error (first deploy)
-    local diff_output
-    if diff_output=$(ecspresso diff \
+    local diff_output diff_exit_code
+    diff_output=$(ecspresso diff \
         --config ecspresso.jsonnet \
         --ext-str ENV="$ENV" \
-        --ext-str SERVICE="$SERVICE_NAME" \
+        --ext-str NAME="$NAME" \
         --ext-str ACCOUNT_ID="$ACCOUNT_ID" \
-        --ext-str AWS_REGION="$AWS_REGION" 2>&1 || true); then
-        # Filter out log messages to get actual diff content
-        local actual_diff
-        actual_diff=$(echo "$diff_output" | grep -v "^\[" | grep -v "^20[0-9][0-9]" | grep -v "^\s*$" || true)
+        --ext-str AWS_REGION="$AWS_REGION" 2>&1 || true)
+    diff_exit_code=$?
 
-        if [[ -z "$actual_diff" ]]; then
-            log "INFO" "Service definition: no changes detected, skipping deploy"
-            return 0
-        else
-            log "INFO" "Service definition has changes:"
-            echo "$actual_diff"
-        fi
+    # Filter out log messages: remove lines starting with timestamp patterns or log level markers
+    # Improved pattern: ISO timestamps, bracketed log levels, and empty lines
+    local actual_diff
+    actual_diff=$(echo "$diff_output" | grep -vE '^(\[|[0-9]{4}-[0-9]{2}-[0-9]{2}|time=|level=|\s*$)' || true)
+
+    if [[ -z "$actual_diff" && $diff_exit_code -eq 0 ]]; then
+        log "INFO" "Service definition: no changes detected, skipping deploy"
+        return 0
+    elif [[ -n "$actual_diff" ]]; then
+        log "INFO" "Service definition has changes:"
+        echo "$actual_diff"
     else
         log "INFO" "Task definition: cannot compare (may be first deploy), will deploy"
     fi
@@ -198,25 +200,37 @@ function deploy_service {
 
     # Read auto-scaling config from the environment-specific jsonnet
     local env_config min_capacity max_capacity
-    env_config=$(jsonnet \
+    if ! env_config=$(jsonnet \
         -V ENV="$ENV" \
         -V ACCOUNT_ID="$ACCOUNT_ID" \
         -V AWS_REGION="$AWS_REGION" \
-        "env/${ENV}.jsonnet")
+        "env/${ENV}.jsonnet" 2>&1); then
+        error_exit "Failed to render jsonnet config: $env_config"
+    fi
 
-    min_capacity=$(echo "$env_config" | jq -r '.auto_scaling.min_capacity')
-    max_capacity=$(echo "$env_config" | jq -r '.auto_scaling.max_capacity')
+    min_capacity=$(echo "$env_config" | jq -r '.auto_scaling.min_capacity // 1')
+    max_capacity=$(echo "$env_config" | jq -r '.auto_scaling.max_capacity // 10')
+
+    # Validate auto-scaling values
+    if [[ ! "$min_capacity" =~ ^[0-9]+$ ]] || [[ ! "$max_capacity" =~ ^[0-9]+$ ]]; then
+        error_exit "Invalid auto-scaling values: min=$min_capacity, max=$max_capacity"
+    fi
+    if [[ $min_capacity -gt $max_capacity ]]; then
+        error_exit "min_capacity ($min_capacity) cannot exceed max_capacity ($max_capacity)"
+    fi
 
     log "INFO" "Auto-scaling: min=${min_capacity}, max=${max_capacity}"
 
-    ecspresso deploy \
+    if ! ecspresso deploy \
         --config ecspresso.jsonnet \
         --ext-str ENV="$ENV" \
-        --ext-str SERVICE="$SERVICE_NAME" \
+        --ext-str NAME="$NAME" \
         --ext-str ACCOUNT_ID="$ACCOUNT_ID" \
         --ext-str AWS_REGION="$AWS_REGION" \
         --auto-scaling-min="$min_capacity" \
-        --auto-scaling-max="$max_capacity"
+        --auto-scaling-max="$max_capacity"; then
+        error_exit "ecspresso deploy failed"
+    fi
 
     log "INFO" "Deployment completed"
 }
@@ -246,7 +260,7 @@ function destroy_service {
     ecspresso destroy \
         --config ecspresso.jsonnet \
         --ext-str ENV="$ENV" \
-        --ext-str SERVICE="$SERVICE_NAME" \
+        --ext-str NAME="$NAME" \
         --ext-str ACCOUNT_ID="$ACCOUNT_ID" \
         --ext-str AWS_REGION="$AWS_REGION"
 
@@ -278,7 +292,7 @@ function verify_service {
     ecspresso verify \
         --config ecspresso.jsonnet \
         --ext-str ENV="$ENV" \
-        --ext-str SERVICE="$SERVICE_NAME" \
+        --ext-str NAME="$NAME" \
         --ext-str ACCOUNT_ID="$ACCOUNT_ID" \
         --ext-str AWS_REGION="$AWS_REGION"
 
@@ -331,22 +345,14 @@ function main {
     log "INFO" "Account ID: ${ACCOUNT_ID}"
     log "INFO" "Region: ${AWS_REGION}"
 
+    # Derive service name from the directory name.
+    # This NAME value must match the corresponding key in registry.jsonnet
+    # so that the service can be correctly looked up in the registry.
+    NAME=$(basename "${abs_path}")
+    log "INFO" "Service name: ${NAME}"
+
     # Change to service directory so ecspresso can find ecspresso.jsonnet and env/
     cd "${abs_path}"
-
-    # Resolve service name from the environment-specific jsonnet
-    local env_config
-    env_config=$(jsonnet \
-        -V ENV="$ENV" \
-        -V ACCOUNT_ID="$ACCOUNT_ID" \
-        -V AWS_REGION="$AWS_REGION" \
-        "env/${ENV}.jsonnet")
-
-    SERVICE_NAME=$(echo "$env_config" | jq -r '.service_name')
-    if [[ -z "$SERVICE_NAME" || "$SERVICE_NAME" == "null" ]]; then
-        error_exit "service_name is missing in env/${ENV}.jsonnet"
-    fi
-    log "INFO" "Service name: ${SERVICE_NAME}"
 
     case "$ACTION" in
         deploy)

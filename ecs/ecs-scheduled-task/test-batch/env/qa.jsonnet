@@ -6,11 +6,11 @@ base {
   // QA tier defaults - uncomment to customize
   //
   // Change schedule for QA (e.g., every 2 hours instead of daily):
-  // base+: { schedule_expression: 'cron(0 */2 * * ? *)' },
+  // base+: { rules+: { schedule_expression: 'cron(0 */2 * * ? *)' } },
   //
   // Override image tag:
-  // base+: { image_tag: 'qa-v1.0.0' },
+  // base+: { task+: { container_definitions+: { image_tag: 'qa-v1.0.0' } } },
   //
   // Add custom command or debugging options:
-  // base+: { command: ['--debug', '--log-level=info'] },
+  // base+: { task+: { container_definitions+: { command: ['--debug', '--log-level=info'] } } },
 }

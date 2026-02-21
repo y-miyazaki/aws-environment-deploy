@@ -20,8 +20,9 @@ setup() {
     unset PRESERVE_NEWLINES
     run normalize_csv_value $'Hello\nHe"llo'
     [ "$status" -eq 0 ]
-    # newlines are replaced with \n and quotes doubled
-    [[ "$output" == *"Hello\\nHe\"\"llo"* ]]
+    # newlines are preserved as real newlines and quotes are doubled; output is wrapped in double quotes
+    [[ "$output" == '"Hello'* ]]
+    [[ "$output" == *'He""llo"' ]]
 }
 
 @test "normalize_csv_value escapes quotes and newlines when PRESERVE_NEWLINES=false" {

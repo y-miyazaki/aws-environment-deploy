@@ -272,7 +272,8 @@ jobs:
             --config "${ECSPRESSO_CONFIG}" \
             --ext-str ACCOUNT_ID="${ACCOUNT_ID}" \
             --ext-str AWS_REGION="${AWS_REGION}" \
-            --ext-str ENV="${ENVIRONMENT}"
+            --ext-str ENV="${ENVIRONMENT}" \
+            --ext-str NAME="${{ matrix.name }}"
           echo "ecspresso verify passed"
 
       - name: Summary
@@ -359,6 +360,7 @@ jobs:
             -V ACCOUNT_ID="${ACCOUNT_ID}" \
             -V AWS_REGION="${AWS_REGION}" \
             -V ENV="${ENVIRONMENT}" \
+            -V NAME="${{ matrix.name }}" \
             "${ECSCHEDULE_CONFIG}" > "$TMP_CONFIG"
 
           # Verify EventBridge rules (CI: show diff without applying)
@@ -373,7 +375,8 @@ jobs:
             --config "${ECSPRESSO_CONFIG}" \
             --ext-str ACCOUNT_ID="${ACCOUNT_ID}" \
             --ext-str AWS_REGION="${AWS_REGION}" \
-            --ext-str ENV="${ENVIRONMENT}"
+            --ext-str ENV="${ENVIRONMENT}" \
+            --ext-str NAME="${{ matrix.name }}"
           echo "Verification passed"
 
       - name: Summary

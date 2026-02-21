@@ -43,3 +43,35 @@ setup() {
     [ "$status" -eq 0 ]
     [[ "$output" == *"[ERROR] fatal"* ]]
 }
+
+@test "error_exit displays error and exits with code 1" {
+    run error_exit "test error"
+    [ "$status" -eq 1 ]
+    [[ "$output" == *"ERROR: test error"* ]]
+}
+
+@test "error_exit exits with custom code" {
+    run error_exit "test error" 42
+    [ "$status" -eq 42 ]
+}
+
+@test "validate_dependencies with multiple missing tools" {
+    run validate_dependencies "bash" "nonexistent1" "nonexistent2"
+    [ "$status" -ne 0 ]
+    [[ "$output" == *"nonexistent1"* ]]
+    [[ "$output" == *"nonexistent2"* ]]
+}
+
+@test "validate_env_vars with multiple variables" {
+    export VAR1="value1"
+    export VAR2="value2"
+    run validate_env_vars "VAR1" "VAR2"
+    [ "$status" -eq 0 ]
+    unset VAR1 VAR2
+}
+
+@test "get_start_time returns numeric timestamp" {
+    run get_start_time
+    [ "$status" -eq 0 ]
+    [[ "$output" =~ ^[0-9]+$ ]]
+}

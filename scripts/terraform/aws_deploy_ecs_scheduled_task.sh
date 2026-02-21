@@ -48,7 +48,7 @@ source "${SCRIPT_DIR}/../lib/all.sh"
 ACTION="apply"
 ACCOUNT_ID=""
 AWS_REGION="${AWS_REGION:-}"
-SCHEDULED_TASK_NAME=""
+TASK_NAME=""
 ENV="dev"
 RULE_NAME=""
 TASK_PATH=""
@@ -192,42 +192,45 @@ function apply_scheduled_task {
     local tmp_config="$1"
 
     # Task definition diff: empty stdout = no changes
-    local td_changed=false td_diff actual_td_diff
-    if td_diff=$(ecspresso diff \
+    local td_changed=false td_diff td_exit_code actual_td_diff
+    td_diff=$(ecspresso diff \
         --config ecspresso.jsonnet \
         --ext-str ENV="$ENV" \
-        --ext-str SCHEDULED_TASK="$SCHEDULED_TASK_NAME" \
+        --ext-str NAME="$TASK_NAME" \
         --ext-str ACCOUNT_ID="$ACCOUNT_ID" \
-        --ext-str AWS_REGION="$AWS_REGION" 2>&1); then
-        # Filter out log messages to get actual diff content
-        actual_td_diff=$(echo "$td_diff" | grep -v "^\[" | grep -v "^20[0-9][0-9]" | grep -v "^\s*$" || true)
+        --ext-str AWS_REGION="$AWS_REGION" 2>&1 || true)
+    td_exit_code=$?
+
+    # Improved filter: remove timestamp patterns, log level markers, and empty lines
+    actual_td_diff=$(echo "$td_diff" | grep -vE '^(\[|[0-9]{4}-[0-9]{2}-[0-9]{2}|time=|level=|\s*$)' || true)
+
+    if [[ -n "$actual_td_diff" || $td_exit_code -ne 0 ]]; then
+        td_changed=true
         if [[ -n "$actual_td_diff" ]]; then
-            td_changed=true
             echo "$actual_td_diff"
         else
-            log "INFO" "Task definition: no changes"
+            log "INFO" "Task definition: cannot compare (may be first deploy), will register"
         fi
     else
-        td_changed=true
-        log "INFO" "Task definition: cannot compare (may be first deploy), will register"
+        log "INFO" "Task definition: no changes"
     fi
 
     # EventBridge rules diff: use unified diff format for reliable change detection
-    # NOTE: ecschedule diff -u produces git-style unified diff output
-    # Empty output = no changes; non-empty output = changes detected
-    # Filter out log messages to get actual diff content
-    local schedule_changed=false schedule_diff actual_schedule_diff
-    if schedule_diff=$(ecschedule -conf "$tmp_config" diff -all -u 2>&1); then
-        actual_schedule_diff=$(echo "$schedule_diff" | grep -v "^\[" | grep -v "^20[0-9][0-9]" | grep -v "^\s*$" || true)
+    local schedule_changed=false schedule_diff schedule_exit_code actual_schedule_diff
+    schedule_diff=$(ecschedule -conf "$tmp_config" diff -all -u 2>&1 || true)
+    schedule_exit_code=$?
+
+    actual_schedule_diff=$(echo "$schedule_diff" | grep -vE '^(\[|[0-9]{4}-[0-9]{2}-[0-9]{2}|time=|level=|\s*$)' || true)
+
+    if [[ -n "$actual_schedule_diff" || $schedule_exit_code -ne 0 ]]; then
+        schedule_changed=true
         if [[ -n "$actual_schedule_diff" ]]; then
-            schedule_changed=true
             echo "$actual_schedule_diff"
         else
-            log "INFO" "EventBridge rules: no changes"
+            log "INFO" "EventBridge rules: diff failed, will apply"
         fi
     else
-        schedule_changed=true
-        log "INFO" "EventBridge rules: diff failed, will apply"
+        log "INFO" "EventBridge rules: no changes"
     fi
 
     if [[ "$td_changed" == "false" && "$schedule_changed" == "false" ]]; then
@@ -236,22 +239,25 @@ function apply_scheduled_task {
     fi
 
     # Step 2: Register task definition via ecspresso if changed
-    # ecschedule apply requires the task definition to already exist in ECS
     if [[ "$td_changed" == "true" ]]; then
         echo_section "Registering task definition (ecspresso register)"
-        ecspresso register \
+        if ! ecspresso register \
             --config ecspresso.jsonnet \
             --ext-str ENV="$ENV" \
-            --ext-str SCHEDULED_TASK="$SCHEDULED_TASK_NAME" \
+            --ext-str NAME="$TASK_NAME" \
             --ext-str ACCOUNT_ID="$ACCOUNT_ID" \
-            --ext-str AWS_REGION="$AWS_REGION"
+            --ext-str AWS_REGION="$AWS_REGION"; then
+            error_exit "ecspresso register failed"
+        fi
         log "INFO" "Task definition registered"
     fi
 
     # Step 3: Apply EventBridge rules via ecschedule if changed
     if [[ "$schedule_changed" == "true" ]]; then
         echo_section "Applying EventBridge rules (ecschedule apply)"
-        ecschedule -conf "$tmp_config" apply -all -prune
+        if ! ecschedule -conf "$tmp_config" apply -all -prune; then
+            error_exit "ecschedule apply failed"
+        fi
         log "INFO" "Apply completed"
     fi
 }
@@ -285,7 +291,7 @@ function diff_scheduled_task {
     ecspresso diff \
         --config ecspresso.jsonnet \
         --ext-str ENV="$ENV" \
-        --ext-str SCHEDULED_TASK="$SCHEDULED_TASK_NAME" \
+        --ext-str NAME="$TASK_NAME" \
         --ext-str ACCOUNT_ID="$ACCOUNT_ID" \
         --ext-str AWS_REGION="$AWS_REGION" \
         || log "INFO" "(task definition not yet registered)"
@@ -374,6 +380,12 @@ function main {
     # Change to task directory so ecspresso and ecschedule can find their config files
     cd "${abs_path}"
 
+    # Derive task name from the directory name.
+    # This TASK_NAME must match the key in registry.jsonnet under the scheduled_tasks section
+    # so that the correct configuration is selected during Jsonnet rendering.
+    TASK_NAME=$(basename "${abs_path}")
+    log "INFO" "Scheduled task name: ${TASK_NAME}"
+
     # Render Jsonnet to a temporary JSON file
     # ecschedule does not support --ext-str; rendering is handled here by the jsonnet CLI
     # ecspresso supports --ext-str natively, so no pre-rendering is needed for task definitions
@@ -384,15 +396,10 @@ function main {
     echo_section "Rendering configs: ENV=${ENV}"
     jsonnet \
         -V ENV="$ENV" \
+        -V NAME="$TASK_NAME" \
         -V ACCOUNT_ID="$ACCOUNT_ID" \
         -V AWS_REGION="$AWS_REGION" \
         ecschedule.jsonnet > "${tmp_config}"
-
-    SCHEDULED_TASK_NAME=$(jq -r '.batch_name' "${tmp_config}")
-    if [[ -z "$SCHEDULED_TASK_NAME" || "$SCHEDULED_TASK_NAME" == "null" ]]; then
-        error_exit "batch_name is missing in ecschedule.jsonnet output"
-    fi
-    log "INFO" "Scheduled task name: ${SCHEDULED_TASK_NAME}"
 
     case "$ACTION" in
         apply)

@@ -234,6 +234,9 @@ aws iam get-role-policy --role-name dev-test-ecs-task-execution-role
 
 ## 📚 Related Documentation
 
+- [Troubleshooting Guide](docs/TROUBLESHOOTING.md) - Common issues and solutions
+- [Monitoring & Observability](docs/MONITORING.md) - CloudWatch, X-Ray, and alerting
+- [Performance Optimization](docs/PERFORMANCE.md) - Optimization strategies and best practices
 - [ecspresso](https://github.com/kayac/ecspresso)
 - [Jsonnet](https://jsonnet.org/)
 - [AWS ECS](https://docs.aws.amazon.com/ecs/)

@@ -81,8 +81,55 @@
     vpc: 'vpc',
   },
 
+  // Default VPC network configurations using tfstate references
+  // ecschedule uses aws_vpc_configuration; ecspresso service uses awsvpc_configuration
+  network_configuration: {
+    scheduled_task: {
+      aws_vpc_configuration: {
+        assign_public_ip: 'DISABLED',
+        security_groups: ['{{ tfstate `module.%s.aws_security_group.this_name_prefix[0].id` }}' % $.terraform_modules.security_group],
+        subnets: [
+          '{{ tfstate `module.%s.aws_subnet.private[0].id` }}' % $.terraform_modules.vpc,
+          '{{ tfstate `module.%s.aws_subnet.private[1].id` }}' % $.terraform_modules.vpc,
+          '{{ tfstate `module.%s.aws_subnet.private[2].id` }}' % $.terraform_modules.vpc,
+        ],
+      },
+    },
+    service: {
+      awsvpc_configuration: {
+        assign_public_ip: 'DISABLED',
+        security_groups: ['{{ tfstate `module.%s.aws_security_group.this_name_prefix[0].id` }}' % $.terraform_modules.security_group],
+        subnets: [
+          '{{ tfstate `module.%s.aws_subnet.private[0].id` }}' % $.terraform_modules.vpc,
+          '{{ tfstate `module.%s.aws_subnet.private[1].id` }}' % $.terraform_modules.vpc,
+          '{{ tfstate `module.%s.aws_subnet.private[2].id` }}' % $.terraform_modules.vpc,
+        ],
+      },
+    },
+  },
+
   // Helper functions
   helpers: {
+    // Validate Fargate CPU/Memory combination
+    // Returns true if valid, throws error if invalid
+    validateFargateResources: function(cpu, memory)
+      local validCombos = {
+        '256': ['512', '1024', '2048'],
+        '512': ['1024', '2048', '3072', '4096'],
+        '1024': ['2048', '3072', '4096', '5120', '6144', '7168', '8192'],
+        // 2048 CPU: valid memory (MB) from 4096 to 16384 in 1024 MB increments (generated via std.range).
+        '2048': std.range(4096, 16384, 1024),
+        // 4096 CPU: valid memory (MB) from 8192 to 30720 in 1024 MB increments (generated via std.range).
+        '4096': std.range(8192, 30720, 1024),
+      };
+      local cpuStr = if std.isString(cpu) then cpu else std.toString(cpu);
+      local memStr = if std.isString(memory) then memory else std.toString(memory);
+      if !std.objectHas(validCombos, cpuStr) then
+        error 'Invalid CPU value: %s. Valid: 256, 512, 1024, 2048, 4096' % cpuStr
+      else if !std.member(validCombos[cpuStr], std.parseInt(memStr)) then
+        error 'Invalid memory %s for CPU %s' % [memStr, cpuStr]
+      else true,
+
     // Build ECR image URI with optional tag override
     buildImageUri: function(prefix, region, accountId, repo, tag='latest')
       '%s.dkr.ecr.%s.amazonaws.com/%s-%s:%s' % [accountId, region, prefix, repo, tag],

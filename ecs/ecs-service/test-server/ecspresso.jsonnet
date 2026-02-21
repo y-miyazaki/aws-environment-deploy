@@ -1,7 +1,7 @@
 // Ecspresso configuration
 // Can be used directly by ecspresso (no need to generate ecspresso.yaml)
 // Usage: ecspresso verify --config ecspresso.jsonnet --ext-str ENV=dev \
-//                         --ext-str SERVICE=test-server --ext-str ACCOUNT_ID=... --ext-str AWS_REGION=...
+//                         --ext-str NAME=test-server --ext-str ACCOUNT_ID=... --ext-str AWS_REGION=...
 //
 // When creating a new service, only change service name in base.jsonnet
 

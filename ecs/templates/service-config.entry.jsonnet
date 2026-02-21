@@ -1,117 +1,74 @@
 // Service config entry for ecs-service
-// Returns full config: { service (base), plugins, region, auto_scaling, service (layer), task }
+// Returns full config: { base, plugins, region, auto_scaling, service (layer), task }
 // Used by ecspresso.jsonnet (.service.cluster, .plugins, .region, .service.name)
 // Used by task-definition.entry.jsonnet (.task) and service-definition.entry.jsonnet (.service)
 //
-// Usage: jsonnet -V ENV=dev -V SERVICE=test-server \
+// Usage: jsonnet -V ENV=dev -V NAME=test-server \
 //               -V ACCOUNT_ID=<id> -V AWS_REGION=ap-northeast-1 templates/service-config.entry.jsonnet
 //
 // External variables:
 //   ENV:        environment name (dev, qa, stg, prd)
-//   SERVICE:    service name (e.g., test-server)
+//   NAME:       service name (e.g., test-server)
 //   ACCOUNT_ID: AWS account ID
 //   AWS_REGION: AWS region
 
 local env = std.extVar('ENV');
-local service = std.extVar('SERVICE');
+local name = std.extVar('NAME');
 local registry = import '../registry.jsonnet';
 local globalConfig = import '../config.jsonnet';
 
-// Get base config from registry: { service: {...} }
-local baseConfig = registry.services[service][env];
+local baseConfig = registry.services[name][env];
 local svc = baseConfig.base;
 local prefix = globalConfig.env;
 local region = globalConfig.region;
 local accountId = globalConfig.accountId;
 
-// Derived values
 local container_name = globalConfig.helpers.buildName(prefix, svc.name);
 local task_definition_family = globalConfig.helpers.buildName(prefix, '%s-td' % svc.name);
 
+// Merge globalConfig defaults with base overrides (base takes priority).
+// Nested objects requiring partial override are merged explicitly.
+local svc_service = std.get(svc, 'service', {});
+local service_merged = {
+  network_configuration: globalConfig.network_configuration.service,
+} + globalConfig.service + svc_service + {
+  deployment_configuration: globalConfig.service.deployment_configuration + std.get(svc_service, 'deployment_configuration', {}),
+};
+
+local task = globalConfig.task + svc.task + {
+  container_definitions: globalConfig.task.container_definitions + svc.task.container_definitions,
+  runtime_platform: globalConfig.task.runtime_platform + std.get(svc.task, 'runtime_platform', {}),
+};
+
 // Build and return full config (ecspresso uses .service/plugins/region, entry files use .task/.service)
-baseConfig + {
-  plugins: [
-    {
-      name: 'tfstate',
-      config: {
-        url: globalConfig.helpers.buildTfstateUrl(accountId),
-      },
-    },
-  ],
+baseConfig {
+  plugins: [{ name: 'tfstate', config: { url: globalConfig.helpers.buildTfstateUrl(accountId) } }],
   region: region,
-
-  // Auto-scaling configuration (used by deploy.sh)
-  auto_scaling: {
-    max_capacity: globalConfig.auto_scaling.max_capacity,
-    min_capacity: globalConfig.auto_scaling.min_capacity,
-    policies: globalConfig.auto_scaling.policies,
-  },
-
+  auto_scaling: globalConfig.auto_scaling,
   // Service layer (used by service-definition.entry.jsonnet)
   service: {
     cluster: svc.cluster,
-    desired_count: globalConfig.service.desired_count,
-    healthcheck_grace_period_seconds: globalConfig.service.healthcheck_grace_period_seconds,
     name: globalConfig.helpers.buildName(prefix, '%s-service' % svc.name),
-    platform_version: globalConfig.service.platform_version,
-    propagate_tags: globalConfig.service.propagate_tags,
-    // loadBalancers for ALB integration
-    load_balancers: [
-      {
+    load_balancers: if std.objectHas(service_merged, 'target_group_arn') then
+      if std.objectHas(service_merged, 'container_port') then [{
         containerName: container_name,
-        containerPort: svc.container_port,
-        targetGroupArn: svc.target_group_arn,
-      },
-    ],
-    // deploymentConfiguration settings
-    // Override per environment in env/*.jsonnet:
-    //   base+: { deployment_configuration+: { maximum_percent: 100 } }
-    deployment_configuration: {
-      maximum_percent: globalConfig.service.deployment_configuration.maximum_percent,
-      minimum_healthy_percent: globalConfig.service.deployment_configuration.minimum_healthy_percent,
-    },
-    // networkConfiguration settings
-    // Override per environment in env/*.jsonnet:
-    //   base+: { network_configuration+: { awsvpc_configuration+: { security_groups: ['sg-xxxx'] } } }
-    network_configuration: {
-      awsvpc_configuration: {
-        assign_public_ip: 'DISABLED',
-        security_groups: [
-          '{{ tfstate `module.%s.aws_security_group.this_name_prefix[0].id` }}' % globalConfig.terraform_modules.security_group,
-        ],
-        subnets: [
-          '{{ tfstate `module.%s.aws_subnet.private[0].id` }}' % globalConfig.terraform_modules.vpc,
-          '{{ tfstate `module.%s.aws_subnet.private[1].id` }}' % globalConfig.terraform_modules.vpc,
-          '{{ tfstate `module.%s.aws_subnet.private[2].id` }}' % globalConfig.terraform_modules.vpc,
-        ],
-      },
-    },
+        containerPort: service_merged.container_port,
+        targetGroupArn: service_merged.target_group_arn,
+      }] else error 'service.container_port must be set when service.target_group_arn is specified'
+    else [],
+    desired_count: service_merged.desired_count,
+    healthcheck_grace_period_seconds: service_merged.healthcheck_grace_period_seconds,
+    platform_version: service_merged.platform_version,
+    propagate_tags: service_merged.propagate_tags,
+    deployment_configuration: service_merged.deployment_configuration,
+    network_configuration: service_merged.network_configuration,
   },
-
   // Task layer (used by task-definition.entry.jsonnet)
-  task: {
-    cpu: globalConfig.task.cpu,
-    execution_role_arn: svc.execution_role_arn,
+  task: task {
     family: task_definition_family,
-    memory: globalConfig.task.memory,
-    network_mode: globalConfig.task.network_mode,
-    requires_compatibilities: globalConfig.task.requires_compatibilities,
-    role_arn: svc.task_role_arn,
     tags: svc.tags,
-    runtime_platform: {
-      cpu_architecture: globalConfig.task.runtime_platform.cpu_architecture,
-      operating_system_family: globalConfig.task.runtime_platform.operating_system_family,
-    },
-    container_definitions: {
-      cpu: globalConfig.task.container_definitions.cpu,
-      memory: globalConfig.task.container_definitions.memory,
-      memory_reservation: globalConfig.task.container_definitions.memory_reservation,
+    container_definitions: task.container_definitions {
       name: container_name,
-      command: svc.command,
-      environment: svc.environment,
-      // Override image_tag per environment: base+: { image_tag: 'v1.0.0' }
-      image_repository: svc.image_repository,
-      image_tag: svc.image_tag,
       image: '%s:%s' % [self.image_repository, self.image_tag],
       log_configuration: {
         log_driver: 'awslogs',
@@ -123,14 +80,11 @@ baseConfig + {
         },
       },
       port_mappings: {
-        container_port: svc.container_port,
-        host_port: svc.container_port,
-        name: '%s-%s-tcp' % [svc.name, svc.container_port],
+        container_port: service_merged.container_port,
+        host_port: service_merged.container_port,
+        name: '%s-%s-tcp' % [svc.name, service_merged.container_port],
         protocol: 'tcp',
       },
-      readonly_root_filesystem: svc.readonly_root_filesystem,
-      secrets: svc.secrets,
-      start_timeout: globalConfig.task.container_definitions.start_timeout,
     },
   },
 }

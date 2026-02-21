@@ -6,11 +6,11 @@ base {
   // Production tier defaults - uncomment to customize
   //
   // Change schedule for production:
-  // base+: { schedule_expression: 'cron(0 17 * * ? *)' },
+  // base+: { rules+: { schedule_expression: 'cron(0 17 * * ? *)' } },
   //
   // Override image tag:
-  // base+: { image_tag: 'prd-v1.0.0' },
+  // base+: { task+: { container_definitions+: { image_tag: 'prd-v1.0.0' } } },
   //
   // Add production-specific command options:
-  // base+: { command: ['--log-level=warn'] },
+  // base+: { task+: { container_definitions+: { command: ['--log-level=warn'] } } },
 }
