@@ -86,17 +86,17 @@ Review results must be output in structured format:
 
 **OR**
 
-1. SEC-03: Careful pull_request_target Usage
+1. SEC-03: Careful Use of pull_request_target
    - File: `.github/workflows/ci.yml` L23
    - Problem: Using pull_request_target without proper protections
    - Impact: Arbitrary code execution and secret exposure from external PRs possible
    - Recommendation: Switch to pull_request or add fork validation in if conditions
 
-2. PERF-02: Parallelization Opportunity
+2. PERF-02: Work Reduction with Caching
    - File: `.github/workflows/test.yml` L45-60
-   - Problem: Sequence execution with parallelizable jobs
-   - Impact: Long CI/CD times reduce development velocity
-   - Recommendation: Use matrix or parallel jobs
+   - Problem: Dependencies fetched on every run without caching
+   - Impact: Increased execution time and unnecessary network usage
+   - Recommendation: Add actions/cache for dependency caching with appropriate restore-keys
 ```
 
 ## Available Review Categories
