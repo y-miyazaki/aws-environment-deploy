@@ -31,6 +31,7 @@ on:
         description: "SHA256 checksum for tfcmt release tarball"
         required: false
         type: string
+        # To get checksum: curl -sL "https://github.com/suzuki-shunsuke/tfcmt/releases/download/v4.14.13/tfcmt_linux_amd64.tar.gz" | sha256sum | awk '{print $1}'
         default: "475e3fb36765b10fec5c7a199f86116f6ef764340f96d6baa2becf609418b760" # pragma: allowlist secret
       tfcmt_version:
         description: "tfcmt (tfcmt) version to use for PR plan comments"
@@ -82,13 +83,13 @@ jobs:
           persist-credentials: false
 
       - name: Setup AWS Credentials
-        uses: aws-actions/configure-aws-credentials@8df5847569e6427dd6c4fb1cf565c83acfa8afa7 # v6.0.0
+        uses: aws-actions/configure-aws-credentials@ec61189d14ec14c8efccab744f656cffd0e33f37 # v6.1.0
         with:
           aws-region: ${{ secrets.AWS_REGION }}
           role-to-assume: ${{ secrets.AWS_IAM_ROLE_ARN }}
 
       - name: Setup Terraform
-        uses: hashicorp/setup-terraform@b9cd54a3c349d3f38e8881555d616ced269862dd # v3.1.2
+        uses: hashicorp/setup-terraform@5e8dbf3c6d9deaf4193ca7a8fb23f2ac83bb6c85 # v4.0.0
         with:
           terraform_version: ${{ env.TERRAFORM_VERSION }}
 
@@ -111,14 +112,14 @@ jobs:
           echo "key=terraform-init-${ENVIRONMENT}-${COMPONENT}-${{ runner.os }}-${{ hashFiles(format('{0}/terraform.{1}.tfbackend', env.TERRAFORM_PATH, env.ENVIRONMENT), format('{0}/.terraform.lock.hcl', env.TERRAFORM_PATH), format('{0}/**/*.tf', env.TERRAFORM_PATH), 'modules/**/*.tf') }}" >> "$GITHUB_OUTPUT"
 
       - name: Cache Terraform plugin cache
-        uses: actions/cache@cdf6c1fa76f9f475f3d7449005a359c84ca0f306 # v5.0.3
+        uses: actions/cache@27d5ce7f107fe9357f9df03efb73ab90386fccae # v5.0.5
         with:
           key: ${{ steps.compute-plugin-cache-key.outputs.key }}
           path: |
             ~/.terraform.d/plugin-cache
 
       - name: Cache Terraform init
-        uses: actions/cache@cdf6c1fa76f9f475f3d7449005a359c84ca0f306 # v5.0.3
+        uses: actions/cache@27d5ce7f107fe9357f9df03efb73ab90386fccae # v5.0.5
         with:
           key: ${{ steps.compute-init-cache-key.outputs.key }}
           path: |
@@ -151,7 +152,7 @@ jobs:
           persist-credentials: false
 
       - name: Setup Terraform
-        uses: hashicorp/setup-terraform@b9cd54a3c349d3f38e8881555d616ced269862dd # v3.1.2
+        uses: hashicorp/setup-terraform@5e8dbf3c6d9deaf4193ca7a8fb23f2ac83bb6c85 # v4.0.0
         with:
           terraform_version: ${{ env.TERRAFORM_VERSION }}
 
@@ -166,7 +167,7 @@ jobs:
           mkdir -p ~/.tflint.d/plugins
 
       - name: Setup TFLint
-        uses: terraform-linters/setup-tflint@4cb9feea73331a35b422df102992a03a44a3bb33 # v6.2.1
+        uses: terraform-linters/setup-tflint@b480b8fcdaa6f2c577f8e4fa799e89e756bb7c93 # v6.2.2
         with:
           cache: true
           tflint_config_path: ${{ env.TERRAFORM_PATH }}/.tflint.hcl
@@ -174,7 +175,7 @@ jobs:
 
       - name: Restore Cache Terraform plugin cache
         id: restore-terraform-plugin-cache
-        uses: actions/cache/restore@cdf6c1fa76f9f475f3d7449005a359c84ca0f306 # v5.0.3
+        uses: actions/cache/restore@27d5ce7f107fe9357f9df03efb73ab90386fccae # v5.0.5
         with:
           path: |
             ~/.terraform.d/plugin-cache
@@ -182,7 +183,7 @@ jobs:
 
       - name: Restore Cache Terraform init
         id: restore-terraform-init
-        uses: actions/cache/restore@cdf6c1fa76f9f475f3d7449005a359c84ca0f306 # v5.0.3
+        uses: actions/cache/restore@27d5ce7f107fe9357f9df03efb73ab90386fccae # v5.0.5
         with:
           path: |
             ${{ env.TERRAFORM_PATH }}/.terraform
@@ -221,7 +222,7 @@ jobs:
 
       # https://github.com/aquasecurity/trivy-action/?tab=readme-ov-file#inputs
       - name: Exec Trivy Vulnerability Scan
-        uses: aquasecurity/trivy-action@97e0b3872f55f89b95b2f65b3dbab56962816478 # 0.34.2
+        uses: aquasecurity/trivy-action@57a97c7e7821a5776cebc9bb87c984fa69cba8f1 # 0.35.0
         with:
           exit-code: 1
           format: table
@@ -233,7 +234,7 @@ jobs:
 
       # https://github.com/aquasecurity/trivy-action/?tab=readme-ov-file#inputs
       - name: Exec Trivy Generate SBOM (CycloneDX)
-        uses: aquasecurity/trivy-action@97e0b3872f55f89b95b2f65b3dbab56962816478 # 0.34.2
+        uses: aquasecurity/trivy-action@57a97c7e7821a5776cebc9bb87c984fa69cba8f1 # 0.35.0
         with:
           exit-code: 0
           format: cyclonedx
@@ -242,7 +243,7 @@ jobs:
           scan-type: "fs"
 
       - name: Upload SBOM Artifact
-        uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f # v6.0.0
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         with:
           name: sbom-${{ env.COMPONENT }}-${{ env.ENVIRONMENT }}
           path: ${{ env.TERRAFORM_PATH }}/sbom-${{ env.COMPONENT }}-${{ env.ENVIRONMENT }}.json
@@ -266,13 +267,13 @@ jobs:
           persist-credentials: false
 
       - name: Setup AWS Credentials
-        uses: aws-actions/configure-aws-credentials@8df5847569e6427dd6c4fb1cf565c83acfa8afa7 # v6.0.0
+        uses: aws-actions/configure-aws-credentials@ec61189d14ec14c8efccab744f656cffd0e33f37 # v6.1.0
         with:
           aws-region: ${{ secrets.AWS_REGION }}
           role-to-assume: ${{ secrets.AWS_IAM_ROLE_ARN }}
 
       - name: Setup Terraform
-        uses: hashicorp/setup-terraform@b9cd54a3c349d3f38e8881555d616ced269862dd # v3.1.2
+        uses: hashicorp/setup-terraform@5e8dbf3c6d9deaf4193ca7a8fb23f2ac83bb6c85 # v4.0.0
         with:
           terraform_version: ${{ env.TERRAFORM_VERSION }}
 
@@ -284,7 +285,7 @@ jobs:
 
       - name: Restore Cache Terraform plugin cache
         id: restore-terraform-plugin-cache
-        uses: actions/cache/restore@cdf6c1fa76f9f475f3d7449005a359c84ca0f306 # v5.0.3
+        uses: actions/cache/restore@27d5ce7f107fe9357f9df03efb73ab90386fccae # v5.0.5
         with:
           key: ${{ needs.init.outputs.tf_plugin_cache_key }}
           path: |
@@ -292,7 +293,7 @@ jobs:
 
       - name: Restore Cache Terraform init
         id: restore-terraform-init
-        uses: actions/cache/restore@cdf6c1fa76f9f475f3d7449005a359c84ca0f306 # v5.0.3
+        uses: actions/cache/restore@27d5ce7f107fe9357f9df03efb73ab90386fccae # v5.0.5
         with:
           key: ${{ needs.init.outputs.tf_init_cache_key }}
           path: |

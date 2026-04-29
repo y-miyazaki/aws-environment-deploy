@@ -11,6 +11,13 @@
 # - Help/usage display functions
 # - Dependency validation
 # - Section headers for organized output
+#
+# Output:
+# - None (library file, sourced by other scripts)
+#
+# Design Rules:
+# - No external dependencies (base library)
+# - All functions must be safe to call from any script
 #######################################
 
 #######################################
@@ -115,17 +122,47 @@ function execute_command {
 
     log "DEBUG" "Executing: $*"
 
-    # Execute the command. Support two calling styles:
-    # 1) execute_command cmd arg1 arg2 ...  --> safe, runs the command directly
-    # 2) execute_command "cmd arg1 arg2"   --> common in older scripts; run via bash -lc
-    if [[ $# -eq 1 ]]; then
-        # Single-string command (may contain spaces/options) — run under bash -lc so
-        # shell parsing behaves as the caller expects.
-        bash -lc "$1"
-    else
-        # Multi-argument safe execution
-        "${@}"
+    # Execute the command in multi-argument style only to avoid injection risks.
+    if [[ $# -lt 2 ]]; then
+        error_exit "execute_command requires command and arguments as separate parameters"
     fi
+
+    "${@}"
+}
+
+#######################################
+# execute_command_string: Execute shell command string
+#
+# Description:
+#   Executes a prebuilt command string through bash parsing.
+#   Use this only for internally constructed commands where argument-array
+#   execution is not practical.
+#
+# Arguments:
+#   $1 - Command string to execute
+#
+# Returns:
+#   Command exit code (or 0 in dry-run mode)
+#
+# Usage:
+#   execute_command_string "terraform fmt -check -diff"
+#
+#######################################
+function execute_command_string {
+    local command_string="$1"
+
+    if [[ -z "$command_string" ]]; then
+        error_exit "execute_command_string requires a command string"
+    fi
+
+    if is_dry_run; then
+        echo "DRY-RUN: Would execute: ${command_string}" >&2
+        return 0
+    fi
+
+    log "DEBUG" "Executing shell command: ${command_string}"
+
+    bash -c -- "$command_string"
 }
 
 #######################################
@@ -179,7 +216,7 @@ function is_dry_run {
 #   $2 - Log message
 #
 # Returns:
-#   None (outputs to stderr)
+#   0 always (outputs to stderr when level matches)
 #
 # Usage:
 #   log "INFO" "Process completed successfully"
@@ -192,6 +229,7 @@ function log {
     if [[ "$level" == "ERROR" ]] || [[ "$level" == "WARN" ]] || [[ "${VERBOSE:-false}" == "true" ]]; then
         echo "[$(date +'%Y-%m-%d %H:%M:%S')] [$level] $message" >&2
     fi
+    return 0
 }
 
 #######################################

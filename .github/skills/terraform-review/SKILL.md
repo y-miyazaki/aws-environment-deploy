@@ -1,93 +1,93 @@
 ---
 name: terraform-review
-description: Code review guide for Terraform configurations. Use for manual review of Terraform files checking design decisions requiring human judgment. For detailed category-specific checks, see reference/.
-license: MIT
+description: >-
+  Reviews Terraform configurations for design decisions, security patterns, and best practices.
+  Checks module structure, variable design, tagging, state management, and compliance requiring human judgment.
+  Use when reviewing Terraform pull requests, evaluating infrastructure architecture, or assessing security of IaC code.
+license: Apache-2.0
+metadata:
+  author: y-miyazaki
+  version: "1.0.0"
 ---
 
-# Terraform Code Review
+## Input
 
-This skill provides comprehensive guidance for reviewing Terraform code to ensure correctness, security, maintainability, and best practices compliance.
+- Terraform files (`.tf`) in the PR (required)
+- PR description and linked issues (required)
+- Related documentation (optional)
+- Target environment: dev/staging/production
 
-## When to Use This Skill
+## Output Specification
 
-This skill is applicable for:
+**Output format (MANDATORY)** - Use this exact structure:
 
-- Performing code reviews on Terraform pull requests
-- Checking Terraform configurations before merging
-- Ensuring security and compliance standards
-- Validating best practices adherence
-- Architecture and design review
+- Checks Summary: Total/Passed/Failed/Deferred counts
+- Checks (Failed/Deferred Only): Show only ❌ and ⊘ items in checklist order
+- Issues: Numbered list with full details for each failed or deferred item
+- Use fixed ItemIDs from [references/common-checklist.md](references/common-checklist.md)
+- If all pass: "No failed or deferred checks" / "No issues found"
 
-**Note**: This guide assumes AWS-based Terraform usage. For Azure/GCP environments, some recommendations (especially in the Security section) may need adjustment.
+See [references/common-output-format.md](references/common-output-format.md) for detailed format specification.
 
-**Note**: Linting and auto-checkable items (syntax errors, naming conventions, terraform fmt/validate, tflint, trivy) are excluded from this review as they should be caught by pre-commit hooks or CI/CD pipelines.
+## Execution Scope
 
-## Review Process
+- Systematically apply review checklist from [references/common-checklist.md](references/common-checklist.md)
+- Focus only on checks requiring human/AI judgment (design, security, compliance patterns)
+- **Do not run terraform-validation or execute terraform fmt/validate/tflint/trivy**
+- Do not modify Terraform files or approve/merge PRs
+- AWS-based Terraform (other providers may need adjustment)
 
-### Step 1: Understand Context
+## Reference Files Guide
 
-Before starting the review:
+**Standard Components** (always read):
 
-- Read the PR description and linked issues
-- Understand the purpose of the changes
-- Check if this is new infrastructure or modification
-- Verify which environment (dev/staging/production) is affected
+- [common-checklist.md](references/common-checklist.md) - Complete review checklist with ItemIDs
+- [common-output-format.md](references/common-output-format.md) - Report format specification
 
-### Step 2: Automated Checks First
+**Category Details** (read when reviewing related code):
 
-Verify automated checks have passed:
+- [category-compliance.md](references/category-compliance.md) - Read when reviewing OPA policies or compliance standards
+- [category-cost.md](references/category-cost.md) - Read when reviewing resource sizing, lifecycle policies, or cost optimization
+- [category-data-sources.md](references/category-data-sources.md) - Read when reviewing data source usage or imports
+- [category-dependency.md](references/category-dependency.md) - Read when reviewing depends_on or implicit dependencies
+- [category-events.md](references/category-events.md) - Read when reviewing monitoring, alerting, or logging patterns
+- [category-global.md](references/category-global.md) - Read when reviewing module usage, secrets, or for_each patterns
+- [category-migration.md](references/category-migration.md) - Read when reviewing import strategies or state migration
+- [category-modules.md](references/category-modules.md) - Read when reviewing module structure or provider versions
+- [category-naming.md](references/category-naming.md) - Read when reviewing naming conventions or documentation
+- [category-outputs.md](references/category-outputs.md) - Read when reviewing output design or sensitive data handling
+- [category-patterns.md](references/category-patterns.md) - Read when reviewing design patterns or anti-patterns
+- [category-performance.md](references/category-performance.md) - Read when reviewing API limits, parallel execution, or large-scale configs
+- [category-security.md](references/category-security.md) - Read when reviewing encryption, IAM, resource policies, or VPC security
+- [category-state.md](references/category-state.md) - Read when reviewing state management or backend configuration
+- [category-tagging.md](references/category-tagging.md) - Read when reviewing tag consistency or requirements
+- [category-tfvars.md](references/category-tfvars.md) - Read when reviewing tfvars, secret handling, or environment separation
+- [category-variables.md](references/category-variables.md) - Read when reviewing variable types, defaults, or validation
+- [category-versioning.md](references/category-versioning.md) - Read when reviewing versioning strategies
 
-- `terraform fmt -check`
-- `terraform validate`
-- `tflint`
-- `trivy config`
+## Workflow
 
-If automated checks fail, request fixes before manual review.
-
-### Step 3: Systematic Review
-
-Review categories systematically based on the changes. Use the reference documentation for detailed checks in each category.
-
-### Step 4: Report Issues
-
-Report issues following the Output Format below, including only failed checks with specific recommendations.
+1. **Understand Context** - Read PR description, linked issues, and determine target environment
+2. **Systematic Review** - Apply checklist categories relevant to the changes, loading reference files as needed
+3. **Report Issues** - Output in the format below
 
 ## Output Format
-
-Review results must be output in structured format:
-
-### Output Elements
-
-1. **Checks** (Review items checklist)
-   - Display only failed review items
-   - Format: `ItemID ItemName: ❌ Fail`
-   - Purpose: Highlight issues requiring attention
-   - If all checks pass, output "No issues found"
-
-2. **Issues** (Detected problems)
-   - Display details for each failed item
-   - Numbered list format for each problem
-   - Each issue includes:
-     - Item ID + Item Name
-     - File: file path and line number
-     - Problem: Description of the issue
-     - Impact: Scope and severity
-     - Recommendation: Specific fix suggestion
-
-### Output Format Example
 
 ```markdown
 # Terraform Code Review Result
 
-## Checks
+## Checks Summary
+
+- Total checks: 42
+- Passed: 41
+- Failed: 1
+- Deferred: 0
+
+## Checks (Failed/Deferred Only)
 
 - G-02 Secret Hardcoding Prohibition: ❌ Fail
 
 ## Issues
-
-**No issues found** (if all checks pass)
-
-**OR**
 
 1. G-02: Secret Hardcoding Prohibition
    - File: `terraform/modules/api/main.tf` L45
@@ -102,51 +102,10 @@ Review results must be output in structured format:
    - Recommendation: Add `aws:SecureTransport` condition
 ```
 
-## Available Review Categories
-
-Review categories are organized by domain. Claude will read the relevant category file(s) based on the code being reviewed.
-
-**Global & Base**: Module usage, secrets, versioning, for_each patterns → [reference/global.md](reference/global.md)
-**Modules**: Module structure, provider versions, responsibility → [reference/modules.md](reference/modules.md)
-**Variables**: Type safety, defaults, descriptions, validation → [reference/variables.md](reference/variables.md)
-**Outputs**: Description requirements, sensitive data → [reference/outputs.md](reference/outputs.md)
-**Tfvars**: Secret handling, environment separation → [reference/tfvars.md](reference/tfvars.md)
-**Security**: Encryption, IAM, resource policies, VPC → [reference/security.md](reference/security.md)
-**Tagging**: Tag consistency and requirements → [reference/tagging.md](reference/tagging.md)
-**Events & Observability**: Monitoring, alerting, logging → [reference/events.md](reference/events.md)
-**Versioning**: Immutable versioning strategies → [reference/versioning.md](reference/versioning.md)
-**Naming & Documentation**: Naming conventions, comments → [reference/naming.md](reference/naming.md)
-**CI & Lint**: Pre-commit hooks, CI/CD integration → [reference/ci-lint.md](reference/ci-lint.md)
-**Patterns**: Design patterns and anti-patterns → [reference/patterns.md](reference/patterns.md)
-**State & Backend**: State management, backend configuration → [reference/state.md](reference/state.md)
-**Compliance & Policy**: OPA policies, compliance standards → [reference/compliance.md](reference/compliance.md)
-**Cost Optimization**: Resource sizing, lifecycle policies → [reference/cost.md](reference/cost.md)
-**Performance & Limits**: API limits, parallel exec, large-scale → [reference/performance.md](reference/performance.md)
-**Migration & Refactoring**: Import strategies, state migration → [reference/migration.md](reference/migration.md)
-**Dependency & Ordering**: depends_on, implicit dependencies → [reference/dependency.md](reference/dependency.md)
-**Data Sources & Imports**: Data source usage, imports → [reference/data-sources.md](reference/data-sources.md)
-
 ## Best Practices
-
-When performing code reviews:
 
 - **Constructive and specific**: Include code examples and reference links
 - **Context-aware**: Understand PR purpose and requirements, consider tradeoffs
 - **Clear priorities**: Distinguish between "must fix" and "nice to have"
-- **Leverage MCP tools**: Use context7 for module docs, serena for project structure
-- **Prioritize automation**: Avoid excessive focus on syntax errors and terraform fmt/validate/tflint/trivy
 - **Prevent security oversights**: Pay special attention to SEC-\* items
 - **Note AWS context**: AWS-specific checks may need adjustment for other cloud environments
-
-## Summary
-
-This skill provides:
-
-1. **Comprehensive review guidelines** - 19 categories covering all aspects
-2. **Structured output format** - Consistent, parseable review results
-3. **Clear process** - Step-by-step review workflow
-4. **Prioritization** - Critical vs. minor issues
-5. **Actionable recommendations** - Specific fix suggestions with code examples
-6. **Domain-specific organization** - Load only relevant categories for efficient token usage
-
-For detailed checks in each category, refer to the corresponding file in the [reference/](reference/) directory.

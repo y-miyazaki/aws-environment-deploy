@@ -1,7 +1,7 @@
 #--------------------------------------------------------------
 # base build image
 #--------------------------------------------------------------
-FROM mcr.microsoft.com/vscode/devcontainers/go:1.25@sha256:ade3e38a521ce356bc5b2d55ed87b4c908e2a1b04fd921fc6b264dc5a9cdccc9
+FROM mcr.microsoft.com/devcontainers/go:1.25@sha256:6970c1dd8c4df9faa4a4164cd9112582f40d12fa3595efed8a5880da4ff0ebff
 #--------------------------------------------------------------
 # ARG
 #--------------------------------------------------------------
@@ -54,7 +54,7 @@ RUN rm -f /etc/apt/sources.list.d/yarn.list && \
 #--------------------------------------------------------------
 RUN apt-get update && \
     DEBIAN_FRONTEND=noninteractive apt-get install -y --no-install-recommends \
-    make openssl git tar curl zip jq groff gcc bison python3 python3-dev python3-pip fish shellcheck shfmt bats
+    make openssl git tar curl zip jq groff gcc bison python3 python3-dev python3-pip fish shellcheck shfmt bats yamllint
 
 # Install Node.js
 RUN curl -fsSL https://deb.nodesource.com/setup_${NODE_VERSION}.x | bash - && \

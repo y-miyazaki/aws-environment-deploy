@@ -1,113 +1,77 @@
 ---
 name: markdown-validation
-description: Use markdownlint and markdown-link-check for Markdown validation. This skill provides the validation workflow and troubleshooting guidance. Individual commands are for debugging only.
-license: MIT
+description: >-
+  Validates Markdown files for syntax correctness, formatting standards, and broken links using
+  markdownlint and markdown-link-check. Use when committing documentation changes, checking for
+  broken links, or validating Markdown formatting in pull requests.
+license: Apache-2.0
+metadata:
+  author: y-miyazaki
+  version: "1.0.0"
 ---
 
-# Markdown Validation
+## Input
 
-This skill provides guidance for validating Markdown documentation to ensure quality, correctness, and adherence to standards.
+- Markdown file(s) with `.md` extension (required)
+- markdownlint configuration (`.markdownlint.json` or `.markdownlint.yaml`) (optional)
+- markdown-link-check configuration (`.markdown-link-check.json`) (optional)
+- File pattern for selective validation (default: `**/*.md`) (optional)
 
-## When to Use This Skill
+SKILL.md structural requirements are handled by `agent-skills-review`, not by this skill.
 
-This skill is applicable for:
+## Output Specification
 
-- Validating Markdown syntax
-- Checking for broken links
-- Ensuring documentation formatting
-- Verifying heading hierarchy
-- Debugging Markdown rendering issues
+Structured validation results from two tools: markdownlint → markdown-link-check.
 
-## Validation Commands
+See [references/common-output-format.md](references/common-output-format.md) for detailed format specification.
 
-**Always use these commands for validation.**
+## Execution Scope
 
-### Usage
+- **Always use `scripts/validate.sh`** for comprehensive validation. Do not run individual commands.
+- Script executes markdownlint and markdown-link-check in recommended order
+- **Do not modify Markdown files** (except with --fix flag)
+- External link checking depends on network connectivity
 
-```bash
-# 1. Markdown lint
-markdownlint **/*.md
+## Reference Files Guide
 
-# 2. Link check (recommended)
-markdown-link-check **/*.md
-```
+**Standard Components** (always read):
 
-### When to Use Additional Command Options
+- [common-checklist.md](references/common-checklist.md) - Validation checklist with ItemIDs
+- [common-output-format.md](references/common-output-format.md) - Report format specification
 
-Use detailed command options **only** for:
+## Workflow
 
-- Debugging specific validation failures
-- Auto-fixing issues
-- Using custom configurations
-
-**For normal validation, use the required commands above.**
-
-### Debugging Reference: Command Options
-
-#### 1. markdownlint
-
-**Purpose**: Validate Markdown syntax and style
+**Always use the validation script. Do not run individual commands.**
 
 ```bash
-# Check all Markdown files
-markdownlint **/*.md
+# Full validation of all Markdown files
+bash markdown-validation/scripts/validate.sh
 
-# Check specific file
-markdownlint README.md
+# Validate specific file
+bash markdown-validation/scripts/validate.sh ./README.md
 
-# Auto-fix issues
-markdownlint --fix **/*.md
-
-# Check with custom config
-markdownlint -c .markdownlint.json **/*.md
+# Validate specific directory
+bash markdown-validation/scripts/validate.sh ./docs/
 ```
 
-**What it checks**:
+### What the Script Does
 
-- Markdown syntax errors
-- Heading hierarchy (H1→H2→H3 order)
-- List and table formatting
-- Code block language specification
-- Trailing spaces
-- Line length
-- Consistent style
+1. **markdownlint** - Markdown syntax and style validation
+2. **markdown-link-check** - Broken link detection
 
-#### 2. markdown-link-check
+Detailed command options for troubleshooting are in [references/common-individual-commands.md](references/common-individual-commands.md).
 
-**Purpose**: Detect broken links
+## Output Format
 
-```bash
-# Check all Markdown files
-markdown-link-check **/*.md
-
-# Check specific file
-markdown-link-check README.md
-
-# Check with config
-markdown-link-check -c .markdown-link-check.json **/*.md
+```
+✓ markdownlint: No issues found
+✓ markdown-link-check: All links valid
+All validations passed
 ```
 
-**What it checks**:
+## Best Practices
 
-- Broken internal links
-- Broken external links
-- Invalid anchor references
-- Missing files
-
-## Validation Requirements
-
-Before committing:
-
-- [ ] markdownlint passes
-- [ ] markdown-link-check passes
-- [ ] No sensitive information
-- [ ] Manual review completed
-
-## Validation Workflow
-
-1. **Make changes** - Edit documentation
-2. **Run markdownlint**: `markdownlint **/*.md`
-3. **Fix syntax issues** - Address linting errors
-4. **Check links**: `markdown-link-check **/*.md`
-5. **Fix broken links** - Update or remove invalid links
-6. **Commit** - Only when validation passes
+- Run validation before every documentation commit
+- All syntax violations and broken links must be resolved before merge
+- Heading hierarchy must be correct (H1→H2→H3 order)
+- Code blocks should have language specification

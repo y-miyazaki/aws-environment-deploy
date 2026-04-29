@@ -1,27 +1,50 @@
 ---
 name: shell-script-validation
-description: Shell script validation covering syntax and static analysis. Always use validate.sh script. For troubleshooting, see reference/.
-license: MIT
+description: >-
+  Validates shell scripts for syntax correctness and static analysis issues using bash -n and
+  shellcheck. Use when committing shell script changes, running CI validation, or debugging
+  shellcheck warnings in bash scripts.
+license: Apache-2.0
+metadata:
+  author: y-miyazaki
+  version: "1.0.0"
 ---
 
-# Shell Script Validation
+## Input
 
-This skill provides guidance for validating shell scripts using the comprehensive validation script.
+- Shell script files (`.sh`) in current directory or specified path (required)
+- Validation script: `shell-script-validation/scripts/validate.sh` (required)
+- Optional: directory path, `-v` for verbose output, `-f` for auto-fix
 
-## When to Use This Skill
+## Output Specification
 
-This skill is applicable for:
+Structured validation results from three checks: bash -n → shellcheck → project standards.
 
-- Validating shell script before committing
-- Running comprehensive script quality checks
-- Ensuring syntax correctness
-- Verifying best practice compliance
+See [references/common-output-format.md](references/common-output-format.md) for detailed format specification.
 
-## Validation Script Usage
+## Execution Scope
+
+- **Always use `scripts/validate.sh`** for comprehensive validation. Do not run individual commands.
+- Script executes all tools in recommended order with proper configuration
+- Individual tool commands available for debugging only (see [references/common-individual-commands.md](references/common-individual-commands.md))
+- **Do not review code design decisions** (use shell-script-review for that)
+
+## Reference Files Guide
+
+**Standard Components** (always read):
+
+- [common-checklist.md](references/common-checklist.md) - Validation checklist with ItemIDs
+- [common-output-format.md](references/common-output-format.md) - Report format specification
+- [common-troubleshooting.md](references/common-troubleshooting.md) - Read when validation fails with unexpected errors
+- [common-individual-commands.md](references/common-individual-commands.md) - Read when debugging a specific tool (bash -n/shellcheck)
+
+**Category Details** (read when investigating specific failures):
+
+- [category-standards.md](references/category-standards.md) - Read when project template or coding convention violations are reported
+
+## Workflow
 
 **Always use the validation script. Do not run individual commands.**
-
-### Usage
 
 ```bash
 # Run all validations in the workspace
@@ -39,34 +62,22 @@ bash shell-script-validation/scripts/validate.sh -v -f
 
 ### What the Script Does
 
-The validation script performs all checks in the correct order:
-
 1. **`bash -n`** - Syntax check without execution
 2. **`shellcheck`** - Comprehensive static analysis and best practice enforcement
 3. **Project standards** - Verify script template compliance
 
-## Validation Requirements
+## Output Format
 
-Before considering scripts complete:
+```
+✓ bash -n: Syntax valid
+✓ shellcheck: No issues found
+✓ Project standards: Compliant
+All validations passed
+```
 
-- [ ] All validation checks pass
-- [ ] No syntax errors
-- [ ] No shellcheck warnings
-- [ ] Follows project script standards
-- [ ] Bats tests pass (if applicable)
+## Best Practices
 
-## Validation Workflow
-
-1. **Make changes** - Edit shell scripts
-2. **Run validation**: `bash shell-script-validation/scripts/validate.sh ./script.sh`
-3. **Fix issues** - Address any failures
-4. **Run tests**: `bats test/*.bats` (if applicable)
-5. **Commit** - Only when all checks pass
-
-## Reference Documentation
-
-For detailed information:
-
-- **[Individual Commands](reference/individual-commands.md)** - Command usage for debugging
-- **[Troubleshooting Guide](reference/troubleshooting.md)** - Error resolution
-- **[Script Standards](reference/standards.md)** - Project template and conventions
+- Run validation before every commit
+- Use `-f` to auto-fix formatting issues
+- Run bats tests separately if applicable: `bats test/*.bats`
+- All checks must pass before considering scripts complete

@@ -9,12 +9,13 @@ on:
         description: "SHA256 checksum for arc release tarball"
         required: false
         type: string
-        default: "9c34323caf1f5c4a39f96d7daa7574200f7ed86a6781cdcf6097a122925b1aa5" # pragma: allowlist secret
+        # To get checksum: curl -sL "https://github.com/y-miyazaki/arc/releases/download/v1.0.12/arc-linux-amd64.tar.gz" | sha256sum | awk '{print $1}'
+        default: "85ea298d9f37c7371ca77826e811985103686bf9b418e9262506442171496c76" # pragma: allowlist secret
       arc_version:
-        description: "arc version to use (e.g. v1.0.6)"
+        description: "arc version to use (e.g. v1.0.12)"
         required: false
         type: string
-        default: "v1.0.6"
+        default: "v1.0.12"
       categories:
         description: "Comma-separated categories to limit collection (optional)"
         required: false
@@ -74,7 +75,7 @@ jobs:
           persist-credentials: false
 
       - name: Setup AWS Credentials
-        uses: aws-actions/configure-aws-credentials@8df5847569e6427dd6c4fb1cf565c83acfa8afa7 # v6.0.0
+        uses: aws-actions/configure-aws-credentials@ec61189d14ec14c8efccab744f656cffd0e33f37 # v6.1.0
         with:
           aws-region: ${{ secrets.AWS_REGION }}
           role-to-assume: ${{ secrets.AWS_IAM_ROLE_ARN }}
@@ -159,7 +160,7 @@ jobs:
           ls -lh "${ARTIFACT_NAME}"
 
       - name: Upload Artifact
-        uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f # v6.0.0
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         with:
           name: ${{ steps.setup-parameters.outputs.artifact_name }}
           path: ${{ steps.setup-parameters.outputs.artifact_name }}

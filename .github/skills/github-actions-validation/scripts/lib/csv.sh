@@ -3,6 +3,13 @@
 # Description: CSV processing utility functions for shell scripts
 #
 # Usage: source /path/to/scripts/lib/csv.sh
+#
+# Output:
+# - None (library file, sourced by other scripts)
+#
+# Design Rules:
+# - Handles quoted fields containing commas and newlines
+# - All output values are CSV-safe
 #######################################
 
 #######################################
@@ -36,7 +43,7 @@ csv_data = sys.stdin.read()
 reader = csv.reader(StringIO(csv_data))
 rows = list(reader)
 
-# Sort by multiple columns: Region(4), SubCategory(1), SubSubCategory(2), Name(3)
+# Sort by multiple columns: Region(5), SubCategory(2), SubSubCategory(3), Name(4)
 # Columns are 0-indexed, so subtract 1 from 1-indexed sort keys
 try:
     sorted_rows = sorted(rows, key=lambda row: (
@@ -56,7 +63,7 @@ except Exception as e:
 "
     else
         # Fallback to basic sort if Python is not available
-        printf "%b" "$input_data" | sort -t, -k4,4 -k2,2 -k3,3 -k5,5
+        printf "%b" "$input_data" | sort -t, -k5,5 -k2,2 -k3,3 -k4,4
     fi
 }
 
@@ -77,7 +84,7 @@ except Exception as e:
 #
 #######################################
 function make_csv_safe {
-    local value=$1
+    local value="$1"
 
     # Preserve newlines for better Excel/Numbers compatibility
     # Only remove carriage returns, keep newlines
@@ -118,7 +125,7 @@ function make_csv_safe {
 #   $1 - value to normalize
 #
 # Returns:
-#   CSV-safe value, always quoted (to stdout)
+#   CSV-safe value; quoted when needed (to stdout)
 #
 # Usage:
 #   quoted_value=$(normalize_csv_value "value with \"quotes\"")

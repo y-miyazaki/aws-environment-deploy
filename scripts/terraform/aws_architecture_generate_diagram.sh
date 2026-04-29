@@ -22,7 +22,7 @@
 # - jq: Parse JSON AWS CLI responses
 # - awsdac: Generate diagram from YAML
 #
-# Design:
+# Design Rules:
 # - Queries AWS resources directly using AWS CLI
 # - Extracts AWS resources (Lambda, S3) from AWS API responses
 # - Generates awsdac-compatible YAML with hierarchical VPC structure (VPC → Subnet → EC2)
@@ -1194,7 +1194,7 @@ function update_git_repository {
 }
 
 #######################################
-# main: Main execution function
+# main: Main process
 #
 # Description:
 #   Main execution function

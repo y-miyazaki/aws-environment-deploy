@@ -1,28 +1,50 @@
 ---
 name: github-actions-validation
-description: GitHub Actions workflow validation covering syntax, security, and best practices. Always use validate.sh script. For troubleshooting, see reference/.
-license: MIT
+description: >-
+  Validates GitHub Actions workflows for syntax, security, and best practices using actionlint,
+  ghalint, and zizmor. Use when committing workflow changes, running CI validation, or checking
+  workflow files for security issues.
+license: Apache-2.0
+metadata:
+  author: y-miyazaki
+  version: "1.0.0"
 ---
 
-# GitHub Actions Validation
+## Input
 
-This skill provides guidance for validating GitHub Actions workflows to ensure correctness, security, and best practices.
+- GitHub Actions workflow YAML file(s) in `.github/workflows/` (required)
+- Validation script: `github-actions-validation/scripts/validate.sh` (required)
+- Optional: specific directory path
 
-## When to Use This Skill
+## Output Specification
 
-This skill is applicable for:
+Structured validation results from three tools: actionlint → ghalint → zizmor.
 
-- Validating GitHub Actions workflow syntax
-- Checking workflow security settings
-- Verifying timeout configurations
-- Ensuring best practices compliance
-- Debugging workflow validation failures
+See [references/common-output-format.md](references/common-output-format.md) for detailed format specification.
 
-## Validation Script Usage
+## Execution Scope
+
+- **Always use `scripts/validate.sh`** for comprehensive validation. Do not run individual commands.
+- Script executes all tools in recommended order with proper configuration
+- Individual tool commands available for debugging only (see [references/common-individual-commands.md](references/common-individual-commands.md))
+- **Do not review workflow design decisions** (use github-actions-review for that)
+
+## Reference Files Guide
+
+**Standard Components** (always read):
+
+- [common-checklist.md](references/common-checklist.md) - Validation checklist with ItemIDs
+- [common-output-format.md](references/common-output-format.md) - Report format specification
+- [common-troubleshooting.md](references/common-troubleshooting.md) - Read when validation fails with unexpected errors
+- [common-individual-commands.md](references/common-individual-commands.md) - Read when debugging a specific tool (actionlint/ghalint/zizmor)
+
+**Category Details** (read when investigating specific failures):
+
+- [category-security.md](references/category-security.md) - Read when zizmor or ghalint reports security issues
+
+## Workflow
 
 **Always use the validation script. Do not run individual commands.**
-
-### Usage
 
 ```bash
 # Run all validations (recommended before commit)
@@ -34,34 +56,20 @@ bash github-actions-validation/scripts/validate.sh ./.github/workflows/
 
 ### What the Script Does
 
-The validation script performs all checks in the correct order:
-
 1. **actionlint** - Workflow syntax and best practices validation
 2. **ghalint** - Security and configuration validation
 3. **zizmor** - GitHub Actions security scanner
 
-## Validation Requirements
+## Output Format
 
-Before committing workflow changes:
+```
+✓ actionlint: No issues found
+✓ ghalint: No issues found
+✓ zizmor: No issues found
+All validations passed
+```
 
-- [ ] Validation script passes
-- [ ] All syntax errors resolved
-- [ ] Security warnings addressed
-- [ ] Timeout settings configured
-- [ ] Permissions minimized
+## Best Practices
 
-## Validation Workflow
-
-1. **Make changes** - Edit workflow files
-2. **Run validation**: `bash github-actions-validation/scripts/validate.sh`
-3. **Fix issues** - Address any failures
-4. **Re-run validation** - Ensure all checks pass
-5. **Commit** - Only when validation succeeds
-
-## Reference Documentation
-
-For detailed information:
-
-- **[Individual Commands](reference/individual-commands.md)** - Command usage for debugging
-- **[Troubleshooting Guide](reference/troubleshooting.md)** - Error resolution
-- **[Security Best Practices](reference/security.md)** - Security guidelines
+- Run validation before every workflow commit
+- All checks must pass before considering changes complete
