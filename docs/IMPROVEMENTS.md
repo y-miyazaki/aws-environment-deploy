@@ -75,13 +75,19 @@
 
 4. **README.md** (updated)
    - Added links to new documentation
-   - Added validation step in Quick Start
+   - Added explicit naming convention guidance (`directory name = registry key = NAME`)
+   - Updated troubleshooting examples to `--ext-str NAME=...`
+
+5. **docs/SPEC.md** (new)
+   - Added normative specification and AI decision policy
+   - Defined source-of-truth priority across docs/code/README
+   - Documented naming invariants for service/task deployments
 
 ### 4. Performance and Efficiency ✅
 
-#### Configuration Validation Script
-- **File**: `scripts/terraform/validate_config.sh`
-- **Features**:
+#### Configuration Validation Script (Planned)
+- **File**: `scripts/terraform/validate_config.sh` (not yet implemented)
+- **Planned Features**:
   - Validates Jsonnet syntax before deployment
   - Checks required fields (auto_scaling, task config)
   - Validates auto-scaling values (numeric, min <= max)
@@ -114,7 +120,6 @@
 
 #### Jsonnet Validation
 - Added comprehensive test suite for Jsonnet configs
-- Validation script checks all configurations before deployment
 - Fargate resource validation function in config.jsonnet
 - Type checking for numeric values (CPU, memory, auto-scaling)
 - Range validation (min <= max for auto-scaling)
@@ -135,7 +140,6 @@
 ### Maintainability
 - Comprehensive test coverage for critical functions
 - Clear documentation for common issues
-- Validation script catches errors before deployment
 
 ### Performance
 - Pre-deployment validation reduces failed deployments
@@ -144,7 +148,6 @@
 
 ### Developer Experience
 - Clear troubleshooting guide reduces time to resolution
-- Validation script provides immediate feedback
 - Comprehensive documentation covers common scenarios
 
 ## Testing the Improvements

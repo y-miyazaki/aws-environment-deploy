@@ -44,7 +44,7 @@ local task = globalConfig.task + svc.task + {
 baseConfig {
   plugins: [{ name: 'tfstate', config: { url: globalConfig.helpers.buildTfstateUrl(accountId) } }],
   region: region,
-  auto_scaling: globalConfig.auto_scaling,
+  auto_scaling: globalConfig.auto_scaling + std.get(baseConfig, 'auto_scaling', {}),
   // Service layer (used by service-definition.entry.jsonnet)
   service: {
     cluster: svc.cluster,

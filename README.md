@@ -4,6 +4,34 @@
 
 > **Note**: This is a template/example project. Customize configurations for your production use.
 
+<!-- omit in toc -->
+## Table of Contents
+- [aws-environment-deploy](#aws-environment-deploy)
+  - [📁 Project Structure](#-project-structure)
+  - [🚀 Quick Start](#-quick-start)
+    - [Prerequisites](#prerequisites)
+    - [Deploy ECS Service](#deploy-ecs-service)
+  - [📝 Creating a New ECS Service](#-creating-a-new-ecs-service)
+    - [1. Copy Service Directory](#1-copy-service-directory)
+    - [2. Edit base.jsonnet](#2-edit-basejsonnet)
+    - [3. Customize Environment Settings](#3-customize-environment-settings)
+    - [4. Register in registry.jsonnet](#4-register-in-registryjsonnet)
+  - [📅 Creating a New ECS Scheduled Task](#-creating-a-new-ecs-scheduled-task)
+    - [1. Copy Task Directory](#1-copy-task-directory)
+    - [2. Edit base.jsonnet](#2-edit-basejsonnet-1)
+    - [3. Configure Schedule in env<env>.jsonnet](#3-configure-schedule-in-envenvjsonnet)
+    - [4. Deploy Scheduled Task](#4-deploy-scheduled-task)
+  - [⚙️ Configuration Reference](#️-configuration-reference)
+    - [Environment Variables](#environment-variables)
+    - [Resource Settings](#resource-settings)
+  - [🔒 Security](#-security)
+    - [Secrets Manager Integration](#secrets-manager-integration)
+    - [IAM Roles](#iam-roles)
+  - [🛠️ Troubleshooting](#️-troubleshooting)
+    - [Deployment Fails](#deployment-fails)
+    - [Secrets Manager Errors](#secrets-manager-errors)
+  - [📚 Related Documentation](#-related-documentation)
+
 ## 📁 Project Structure
 
 ```
@@ -16,6 +44,10 @@
 │   └── ecs-scheduled-task/ # Scheduled task definitions
 ├── scripts/                # Deploy & operation scripts
 │   ├── terraform/          # Terraform-related scripts
+│   ├── go/                 # Go build & validation scripts
+│   ├── db/                 # Database (SchemaSpy) scripts
+│   ├── nodejs/             # Node.js validation scripts
+│   ├── shell-script/       # Shell script validation
 │   └── lib/                # Common libraries
 └── test/                   # Test code
 ```
@@ -47,6 +79,18 @@ jq >= 1.6
   -e dev \
   deploy
 ```
+
+### Naming Convention (Required)
+
+For both ECS services and scheduled tasks, these three names must be identical:
+
+- Directory name under `ecs/ecs-service/` or `ecs/ecs-scheduled-task/`
+- Key name in `ecs/registry.jsonnet`
+- `NAME` value passed to Jsonnet/ecspresso (deployment scripts derive this from directory name)
+
+Example: `ecs/ecs-service/test-server` -> registry key `'test-server'` -> `NAME=test-server`
+
+If they do not match, deployment scripts fail to resolve `registry.services[name][env]` or `registry.scheduled_tasks[name][env]`.
 
 ## 📝 Creating a New ECS Service
 
@@ -100,6 +144,8 @@ services: {
 }
 ```
 
+Note: the service key (`'your-service'`) must match the directory name (`ecs/ecs-service/your-service`).
+
 ## 📅 Creating a New ECS Scheduled Task
 
 ### 1. Copy Task Directory
@@ -113,26 +159,25 @@ cp -r ecs/ecs-scheduled-task/test-batch ecs/ecs-scheduled-task/your-batch
 ```jsonnet
 local base = {
   name: 'your-batch',
-  cluster: config.helpers.buildName(prefix, 'batch-cluster'),
+  cluster: config.helpers.buildName(prefix, 'recommend-cluster'),
   image_repository: '%s.dkr.ecr.%s.amazonaws.com/%s' % [accountId, region, self.name],
   command: ['python', 'batch.py'],
   // ...
 };
 ```
 
-### 3. Configure Schedule in ecschedule.jsonnet
+### 3. Configure Schedule in env/<env>.jsonnet
 
 ```jsonnet
-{
-  batch_name: base.name,
-  cluster: base.cluster,
-  rules: [
-    {
-      name: config.helpers.buildName(prefix, base.name),
+// env/dev.jsonnet
+local base = import 'base.jsonnet';
+
+base {
+  base+: {
+    rules+: {
       schedule_expression: 'cron(0 2 * * ? *)',  // Daily at 2:00 AM UTC
-      task_count: 1,
     },
-  ],
+  },
 }
 ```
 
@@ -157,6 +202,8 @@ local base = {
   -e dev \
   run -n dev-your-batch
 ```
+
+Note: the scheduled task key (`'your-batch'`) must match the directory name (`ecs/ecs-scheduled-task/your-batch`).
 
 ## ⚙️ Configuration Reference
 
@@ -215,11 +262,16 @@ secrets: [
 # Verify configuration
 ecspresso verify --config ecspresso.jsonnet \
   --ext-str ENV=dev \
+  --ext-str NAME=your-service \
   --ext-str ACCOUNT_ID=123456789012 \
   --ext-str AWS_REGION=ap-northeast-1
 
 # Check diff
-ecspresso diff --config ecspresso.jsonnet ...
+ecspresso diff --config ecspresso.jsonnet \
+  --ext-str ENV=dev \
+  --ext-str NAME=your-service \
+  --ext-str ACCOUNT_ID=123456789012 \
+  --ext-str AWS_REGION=ap-northeast-1
 ```
 
 ### Secrets Manager Errors
@@ -234,9 +286,11 @@ aws iam get-role-policy --role-name dev-test-ecs-task-execution-role
 
 ## 📚 Related Documentation
 
+- [Specification](docs/SPEC.md) - Normative rules for configuration and implementation decisions
 - [Troubleshooting Guide](docs/TROUBLESHOOTING.md) - Common issues and solutions
 - [Monitoring & Observability](docs/MONITORING.md) - CloudWatch, X-Ray, and alerting
 - [Performance Optimization](docs/PERFORMANCE.md) - Optimization strategies and best practices
+- [Improvements Summary](docs/IMPROVEMENTS.md) - Changes and enhancements made to the project
 - [ecspresso](https://github.com/kayac/ecspresso)
 - [Jsonnet](https://jsonnet.org/)
 - [AWS ECS](https://docs.aws.amazon.com/ecs/)
