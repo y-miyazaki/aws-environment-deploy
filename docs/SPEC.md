@@ -2,7 +2,7 @@
 
 ## Overview
 
-This document defines the normative specification for ECS service and scheduled task configuration in this repository.
+This document defines the normative specification for ECS service, scheduled task, and Lambda SAM configuration in this repository.
 
 Audience:
 - Engineers implementing or reviewing infrastructure-related changes
@@ -12,6 +12,7 @@ Audience:
 
 This specification applies to:
 - Jsonnet configuration under `ecs/`
+- SAM configuration under `lambda/`
 - Deployment scripts under `scripts/terraform/`
 - User-facing documentation consistency requirements
 
@@ -20,7 +21,7 @@ This specification applies to:
 Priority order for technical decisions:
 1. `docs/SPEC.md` (this file)
 2. Other technical docs under `docs/` that define explicit rules
-3. Implementation in code (`ecs/`, `scripts/terraform/`)
+3. Implementation in code (`ecs/`, `lambda/`, `scripts/terraform/`)
 4. User-facing guidance in `README.md`
 
 Interpretation rules:
@@ -53,6 +54,41 @@ Each registry entry should provide environment keys explicitly (`dev`, `qa`, `st
 
 Scheduled task schedule/customization is defined in `env/<env>.jsonnet` overrides, not in ad-hoc inline configuration files.
 
+### Lambda SAM Naming Invariant
+
+For Lambda SAM deployments, the following naming conventions apply:
+
+- Stack name: `${Stage}-${ServiceName}` (defined in `samconfig.toml` per environment)
+- Lambda function name: `${Stage}-${ServiceName}-${function_name_suffix}` (defined in `template.yaml`)
+- API Gateway name: `${Stage}-${ServiceName}-api`
+- IAM role name: `${Stage}-${ServiceName}-lambda-role` (when auto-created)
+
+The `Stage` and `ServiceName` parameters in `samconfig.toml` must be consistent across all environments.
+
+### Lambda SAM Template Invariant
+
+`template.yaml` is the single source of truth for Lambda SAM deployments. Edit it directly.
+
+- Function definitions and infrastructure (API Gateway, IAM, WAF, etc.) both belong in `template.yaml`
+- Environment-specific overrides belong in `samconfig.toml`
+
+### Lambda SAM Deploy Script
+
+The entry point for Lambda SAM deployments is `scripts/terraform/aws_deploy_sam.sh`.
+
+```bash
+./scripts/terraform/aws_deploy_sam.sh -p lambda -e dev deploy
+./scripts/terraform/aws_deploy_sam.sh -p lambda -e dev validate
+./scripts/terraform/aws_deploy_sam.sh -p lambda -e dev delete
+```
+
+Alternatively, use the Makefile directly from `lambda/`:
+
+```bash
+make deploy STAGE=dev
+make validate STAGE=dev
+```
+
 ## AI Decision Rules
 
 When an AI agent edits this repository:
@@ -70,6 +106,7 @@ When an AI agent edits this repository:
 For changes affecting behavior:
 - Shell scripts: run syntax validation (`bash -n`) and relevant script validation checks
 - Jsonnet: render key entry files with representative `-V` inputs
+- SAM templates: run `sam validate --lint` after editing `template.yaml`
 - Docs updates: ensure links/headings remain consistent
 
 ## Change Management

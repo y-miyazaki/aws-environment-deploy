@@ -11,6 +11,7 @@
   - [🚀 Quick Start](#-quick-start)
     - [Prerequisites](#prerequisites)
     - [Deploy ECS Service](#deploy-ecs-service)
+    - [Deploy Lambda](#deploy-lambda)
   - [📝 Creating a New ECS Service](#-creating-a-new-ecs-service)
     - [1. Copy Service Directory](#1-copy-service-directory)
     - [2. Edit base.jsonnet](#2-edit-basejsonnet)
@@ -21,6 +22,9 @@
     - [2. Edit base.jsonnet](#2-edit-basejsonnet-1)
     - [3. Configure Schedule in env<env>.jsonnet](#3-configure-schedule-in-envenvjsonnet)
     - [4. Deploy Scheduled Task](#4-deploy-scheduled-task)
+  - [🔧 Creating a New Lambda Function](#-creating-a-new-lambda-function)
+    - [1. Add Function to template.yaml](#1-add-function-to-templateyaml)
+    - [2. Update samconfig.toml](#2-update-samconfigtoml)
   - [⚙️ Configuration Reference](#️-configuration-reference)
     - [Environment Variables](#environment-variables)
     - [Resource Settings](#resource-settings)
@@ -42,6 +46,11 @@
 │   ├── templates/          # Shared templates
 │   ├── ecs-service/        # ECS service definitions
 │   └── ecs-scheduled-task/ # Scheduled task definitions
+├── lambda/                 # Lambda configuration (SAM)
+│   ├── template.yaml       # SAM template
+│   ├── samconfig.toml      # SAM CLI per-environment config
+│   ├── Makefile            # Build/deploy shortcuts
+│   └── .cfnlintrc          # CloudFormation linter config
 ├── scripts/                # Deploy & operation scripts
 │   ├── terraform/          # Terraform-related scripts
 │   ├── go/                 # Go build & validation scripts
@@ -62,6 +71,7 @@ aws-cli >= 2.0
 ecspresso >= 2.0
 jsonnet >= 0.20
 jq >= 1.6
+sam-cli >= 1.0    # For Lambda SAM deployment
 ```
 
 ### Deploy ECS Service
@@ -78,6 +88,37 @@ jq >= 1.6
   -p ecs/ecs-service/test-server \
   -e dev \
   deploy
+```
+
+### Deploy Lambda
+
+```bash
+# Validate template
+./scripts/terraform/aws_deploy_sam.sh \
+  -p lambda \
+  -e dev \
+  validate
+
+# Deploy
+./scripts/terraform/aws_deploy_sam.sh \
+  -p lambda \
+  -e dev \
+  deploy
+
+# Delete stack
+./scripts/terraform/aws_deploy_sam.sh \
+  -p lambda \
+  -e dev \
+  delete
+```
+
+Or use the Makefile directly:
+
+```bash
+cd lambda
+make validate STAGE=dev
+make deploy STAGE=dev
+make delete STAGE=dev
 ```
 
 ### Naming Convention (Required)
@@ -204,6 +245,51 @@ base {
 ```
 
 Note: the scheduled task key (`'your-batch'`) must match the directory name (`ecs/ecs-scheduled-task/your-batch`).
+
+## 🔧 Creating a New Lambda Function
+
+Lambda functions are deployed using [AWS SAM](https://docs.aws.amazon.com/serverless-application-model/). Configuration lives under `lambda/`.
+
+### 1. Add Function to template.yaml
+
+Add the function resource directly to `lambda/template.yaml` under `Resources`:
+
+```yaml
+  YourFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      FunctionName: !Sub "${Stage}-${ServiceName}-your-function-lambda"
+      Description: Your Lambda function
+      CodeUri: outputs/lambda/go_your-function.zip
+      MemorySize: 128
+      Timeout: 30
+      Role: !If [CreateRole, !GetAtt LambdaExecutionRole.Arn, !Ref ExistingLambdaRoleArn]
+      VpcConfig: !If
+        - HasVpc
+        - SubnetIds: !Ref VpcSubnetIds
+          SecurityGroupIds: !Ref VpcSecurityGroupIds
+        - !Ref AWS::NoValue
+      Events:
+        YourFunctionApiEvent:
+          Type: Api
+          Properties:
+            RestApiId: !Ref Api
+            Path: /your-endpoint
+            Method: GET
+```
+
+### 2. Update samconfig.toml
+
+Update `lambda/samconfig.toml` if environment-specific parameters need changes.
+
+### Naming Convention (Lambda)
+
+- Stack name: `${Stage}-${ServiceName}` (e.g., `dev-test-service`)
+- Function name: `${Stage}-${ServiceName}-${function_name_suffix}` (e.g., `dev-test-service-test-hello-lambda`)
+- API Gateway: `${Stage}-${ServiceName}-api`
+- IAM Role: `${Stage}-${ServiceName}-lambda-role` (when auto-created)
+
+`Stage` and `ServiceName` are defined in `samconfig.toml` per environment.
 
 ## ⚙️ Configuration Reference
 

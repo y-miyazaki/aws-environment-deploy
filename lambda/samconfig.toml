@@ -1,0 +1,87 @@
+# SAM CLI Configuration
+# sam deploy --config-env dev|stg|prd to switch environments
+version = 0.1
+
+##########################################################################
+# dev
+##########################################################################
+[dev.deploy.parameters]
+stack_name = "dev-test-service"
+region = "ap-northeast-1"
+resolve_s3 = true
+capabilities = "CAPABILITY_NAMED_IAM"
+no_confirm_changeset = true
+no_fail_on_empty_changeset = true
+tags = "service=\"test-service\" env=\"dev\" deploy=\"SAM\""
+parameter_overrides = [
+  "Stage=dev",
+  "ServiceName=test-service",
+  "EndpointType=REGIONAL",
+  "ApiGatewayDisableDefaultEndpoint=false",
+  "CorsAllowOrigins=*",
+  # "ExistingLambdaRoleArn=arn:aws:iam::123456789012:role/dev-lambda-role",
+  # Custom Domain
+  # "CustomDomainEnabled=true",
+  # "CustomDomainName=dev-api.example.com",
+  # "CustomDomainCertificateArn=arn:aws:acm:ap-northeast-1:123456789012:certificate/xxx",
+  # WAF
+  # "WafAclArn=arn:aws:wafv2:ap-northeast-1:123456789012:regional/webacl/dev-waf/xxx",
+  # VPC (empty to skip)
+  # "VpcSubnetIds=subnet-xxx,subnet-yyy",
+  # "VpcSecurityGroupIds=sg-xxx",
+]
+
+[dev.delete.parameters]
+stack_name = "dev-test-service"
+region = "ap-northeast-1"
+no_prompts = true
+
+##########################################################################
+# stg
+##########################################################################
+[stg.deploy.parameters]
+stack_name = "stg-test-service"
+region = "ap-northeast-1"
+resolve_s3 = true
+capabilities = "CAPABILITY_NAMED_IAM"
+no_confirm_changeset = true
+no_fail_on_empty_changeset = true
+tags = "service=\"test-service\" env=\"stg\" deploy=\"SAM\""
+parameter_overrides = [
+  "Stage=stg",
+  "ServiceName=test-service",
+  "EndpointType=REGIONAL",
+  "ApiGatewayDisableDefaultEndpoint=false",
+  "CorsAllowOrigins=*",
+  "ExistingLambdaRoleArn=arn:aws:iam::123456789012:role/stg-lambda-role",
+]
+
+[stg.delete.parameters]
+stack_name = "stg-test-service"
+region = "ap-northeast-1"
+no_prompts = true
+
+##########################################################################
+# prd
+##########################################################################
+[prd.deploy.parameters]
+stack_name = "prd-test-service"
+region = "ap-northeast-1"
+resolve_s3 = true
+capabilities = "CAPABILITY_NAMED_IAM"
+no_confirm_changeset = true
+no_fail_on_empty_changeset = true
+tags = "service=\"test-service\" env=\"prd\" deploy=\"SAM\""
+parameter_overrides = [
+  "Stage=prd",
+  "ServiceName=test-service",
+  "EndpointType=REGIONAL",
+  "ApiGatewayDisableDefaultEndpoint=false",
+  "CorsAllowOrigins=*",
+  "ExistingLambdaRoleArn=arn:aws:iam::123456789012:role/prd-lambda-role",
+]
+
+[prd.delete.parameters]
+stack_name = "prd-test-service"
+region = "ap-northeast-1"
+no_prompts = true

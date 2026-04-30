@@ -1,0 +1,7 @@
+ignore_checks:
+  # Placeholder ARNs (ACCOUNT_ID) and conditional default empty strings
+  - E3031
+  # SAM auto-generated resource DependsOn duplicate warnings
+  - W3005
+  # Conditional default empty string for optional ARN parameters (e.g. ExistingSchedulerRoleArn)
+  - W1030

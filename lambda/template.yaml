@@ -1,0 +1,407 @@
+AWSTemplateFormatVersion: "2010-09-09"
+Transform: AWS::Serverless-2016-10-31
+Description: API Gateway + Lambda + IAM
+
+##########################################################################
+# Parameters
+##########################################################################
+Parameters:
+  Stage:
+    Type: String
+  ServiceName:
+    Type: String
+  # API Gateway
+  EndpointType:
+    Type: String
+    Default: REGIONAL
+    AllowedValues: [EDGE, REGIONAL]
+  ApiGatewayDisableDefaultEndpoint:
+    Type: String
+    Default: "false"
+    AllowedValues: ["true", "false"]
+  MinimumCompressionSize:
+    Type: Number
+    Default: 1024
+  # API Gateway - Usage Plan
+  UsagePlanQuotaLimit:
+    Type: Number
+    Default: 1000000
+  UsagePlanThrottleBurstLimit:
+    Type: Number
+    Default: 1000
+  UsagePlanThrottleRateLimit:
+    Type: Number
+    Default: 1000
+  # API Gateway - Custom Domain
+  CustomDomainEnabled:
+    Type: String
+    Default: "false"
+    AllowedValues: ["true", "false"]
+  CustomDomainName:
+    Type: String
+    Default: ""
+  CustomDomainCertificateArn:
+    Type: String
+    Default: ""
+    Description: "ACM certificate ARN for custom domain"
+  CustomDomainSecurityPolicy:
+    Type: String
+    Default: TLS_1_2
+    AllowedValues: [TLS_1_0, TLS_1_2]
+  CustomDomainBasePath:
+    Type: String
+    Default: ""
+  # CORS
+  CorsAllowOrigins:
+    Type: String
+    Default: "*"
+  CorsAllowHeaders:
+    Type: String
+    Default: "Content-Type,X-Amz-Date,Authorization,X-Api-Key,X-Amz-Security-Token,X-Amz-User-Agent,X-Amzn-Trace-Id,Access-Control-Allow-Origin,Access-Control-Allow-Headers"
+  CorsMaxAge:
+    Type: Number
+    Default: 604800
+  # VPC (empty to skip)
+  VpcSubnetIds:
+    Type: CommaDelimitedList
+    Default: ""
+  VpcSecurityGroupIds:
+    Type: CommaDelimitedList
+    Default: ""
+  # WAF
+  WafAclArn:
+    Type: String
+    Default: ""
+    Description: "WAFv2 WebACL ARN (empty to skip)"
+  # IAM
+  ExistingLambdaRoleArn:
+    Type: String
+    Default: ""
+    Description: "Existing IAM Role ARN for Lambda (empty to create new role)"
+  ExistingSchedulerRoleArn:
+    Type: String
+    Default: ""
+    Description: "Existing IAM Role ARN for EventBridge Scheduler (empty to create new role)"
+  AdditionalPolicyArns:
+    Type: CommaDelimitedList
+    Default: ""
+    Description: "Additional IAM managed policy ARNs (used when creating new role)"
+  # Lambda
+  DefaultRuntime:
+    Type: String
+    Default: provided.al2023
+  DefaultMemorySize:
+    Type: Number
+    Default: 128
+  DefaultTimeout:
+    Type: Number
+    Default: 30
+  LogRetentionInDays:
+    Type: Number
+    Default: 14
+  # Deploy
+  DeploymentBucketName:
+    Type: String
+    Default: ""
+    Description: "S3 bucket for SAM deployment artifacts (empty for default)"
+
+##########################################################################
+# Conditions
+##########################################################################
+Conditions:
+  HasWaf: !Not [!Equals [!Ref WafAclArn, ""]]
+  HasVpc: !Not [!Equals [!Select [0, !Ref VpcSubnetIds], ""]]
+  HasCustomDomain: !Equals [!Ref CustomDomainEnabled, "true"]
+  CreateRole: !Equals [!Ref ExistingLambdaRoleArn, ""]
+  HasAdditionalPolicies: !And
+    - !Condition CreateRole
+    - !Not [!Equals [!Select [0, !Ref AdditionalPolicyArns], ""]]
+
+##########################################################################
+# Globals
+##########################################################################
+Globals:
+  Function:
+    Runtime: !Ref DefaultRuntime
+    Architectures:
+      - arm64
+    MemorySize: !Ref DefaultMemorySize
+    Timeout: !Ref DefaultTimeout
+    Tracing: Active
+    Handler: bootstrap
+    Environment:
+      Variables:
+        ENV: !Ref Stage
+        REGION: !Ref AWS::Region
+
+##########################################################################
+# Resources
+##########################################################################
+Resources:
+  # ---- API Gateway ----
+  Api:
+    Type: AWS::Serverless::Api
+    Properties:
+      Name: !Sub "${Stage}-${ServiceName}-api"
+      StageName: !Ref Stage
+      Description: !Sub "${Stage}-${ServiceName} API"
+      EndpointConfiguration:
+        Type: !Ref EndpointType
+      DisableExecuteApiEndpoint: !Ref ApiGatewayDisableDefaultEndpoint
+      TracingEnabled: true
+      MinimumCompressionSize: !Ref MinimumCompressionSize
+      BinaryMediaTypes:
+        - "image/png"
+        - "image/jpeg"
+      Auth:
+        ApiKeyRequired: true # pragma: allowlist secret
+        UsagePlan:
+          CreateUsagePlan: PER_API
+          UsagePlanName: !Sub "${Stage}-${ServiceName}-usage-plan"
+          Quota:
+            Limit: !Ref UsagePlanQuotaLimit
+            Offset: 0
+            Period: DAY
+          Throttle:
+            BurstLimit: !Ref UsagePlanThrottleBurstLimit
+            RateLimit: !Ref UsagePlanThrottleRateLimit
+      AccessLogSetting:
+        DestinationArn: !GetAtt ApiAccessLogGroup.Arn
+      MethodSettings:
+        - ResourcePath: "/*"
+          HttpMethod: "*"
+          LoggingLevel: INFO
+          DataTraceEnabled: true
+      Cors:
+        AllowOrigin: !Sub "'${CorsAllowOrigins}'"
+        AllowHeaders: !Sub "'${CorsAllowHeaders}'"
+        AllowCredentials: false
+        MaxAge: !Sub "'${CorsMaxAge}'"
+
+  # ---- API Gateway Access Log ----
+  ApiAccessLogGroup:
+    Type: AWS::Logs::LogGroup
+    Properties:
+      LogGroupName: !Sub "/aws/apigateway/${Stage}-${ServiceName}-api"
+      RetentionInDays: !Ref LogRetentionInDays
+
+  # ---- Custom Domain ----
+  CustomDomain:
+    Type: AWS::ApiGateway::DomainName
+    Condition: HasCustomDomain
+    Properties:
+      DomainName: !Ref CustomDomainName
+      RegionalCertificateArn: !Ref CustomDomainCertificateArn
+      SecurityPolicy: !Ref CustomDomainSecurityPolicy
+      EndpointConfiguration:
+        Types:
+          - !Ref EndpointType
+
+  CustomDomainMapping:
+    Type: AWS::ApiGateway::BasePathMapping
+    Condition: HasCustomDomain
+    DependsOn: ApiStage
+    Properties:
+      DomainName: !Ref CustomDomain
+      RestApiId: !Ref Api
+      Stage: !Ref Stage
+      BasePath: !Ref CustomDomainBasePath
+
+  # ---- WAFv2 Association ----
+  WafAssociation:
+    Type: AWS::WAFv2::WebACLAssociation
+    Condition: HasWaf
+    DependsOn: ApiStage
+    Properties:
+      ResourceArn: !Sub "arn:aws:apigateway:${AWS::Region}::/restapis/${Api}/stages/${Stage}"
+      WebACLArn: !Ref WafAclArn
+
+  # ---- IAM Role (created only when ExistingLambdaRoleArn is empty) ----
+  LambdaExecutionRole:
+    Type: AWS::IAM::Role
+    Condition: CreateRole
+    Properties:
+      RoleName: !Sub "${Stage}-${ServiceName}-lambda-role"
+      AssumeRolePolicyDocument:
+        Version: "2012-10-17"
+        Statement:
+          - Effect: Allow
+            Principal:
+              Service: lambda.amazonaws.com
+            Action: sts:AssumeRole
+      ManagedPolicyArns: !If
+        - HasAdditionalPolicies
+        - !Split
+          - ","
+          - !Sub
+            - "arn:aws:iam::aws:policy/service-role/AWSLambdaBasicExecutionRole,arn:aws:iam::aws:policy/AWSXRayDaemonWriteAccess,${Additional}"
+            - Additional: !Join [",", !Ref AdditionalPolicyArns]
+        - - arn:aws:iam::aws:policy/service-role/AWSLambdaBasicExecutionRole
+          - arn:aws:iam::aws:policy/AWSXRayDaemonWriteAccess
+      Policies:
+        - PolicyName: !Sub "${Stage}-${ServiceName}-lambda-policy"
+          PolicyDocument:
+            Version: "2012-10-17"
+            Statement:
+              - Effect: Allow
+                Action:
+                  - xray:PutTraceSegments
+                  - xray:PutTelemetryRecords
+                Resource: "*"
+
+  # ---- EventBridge Scheduler Role (for ScheduleV2 events) ----
+  SchedulerExecutionRole:
+    Type: AWS::IAM::Role
+    Condition: CreateRole
+    Properties:
+      RoleName: !Sub "${Stage}-${ServiceName}-scheduler-role"
+      AssumeRolePolicyDocument:
+        Version: "2012-10-17"
+        Statement:
+          - Effect: Allow
+            Principal:
+              Service: scheduler.amazonaws.com
+            Action: sts:AssumeRole
+      Policies:
+        - PolicyName: !Sub "${Stage}-${ServiceName}-scheduler-policy"
+          PolicyDocument:
+            Version: "2012-10-17"
+            Statement:
+              - Effect: Allow
+                Action:
+                  - lambda:InvokeFunction
+                Resource: !Sub "arn:aws:lambda:${AWS::Region}:${AWS::AccountId}:function:${Stage}-${ServiceName}-*"
+
+  # ---- Lambda Functions ----
+  TestHelloFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      FunctionName: !Sub "${Stage}-${ServiceName}-test-hello-lambda"
+      Description: Sample hello Lambda function (API + environment variables)
+      CodeUri: outputs/lambda/go_hello.zip
+      MemorySize: 128
+      Timeout: 30
+      Role: !If
+        - CreateRole
+        - !GetAtt LambdaExecutionRole.Arn
+        - !Ref ExistingLambdaRoleArn
+      VpcConfig: !If
+        - HasVpc
+        - SubnetIds: !Ref VpcSubnetIds
+          SecurityGroupIds: !Ref VpcSecurityGroupIds
+        - !Ref AWS::NoValue
+      Environment:
+        Variables:
+          APP_ENV: !Ref Stage
+          LOG_LEVEL: "info"
+      Events:
+        TestHelloApiEvent:
+          Type: Api
+          Properties:
+            RestApiId: !Ref Api
+            Path: /hello
+            Method: GET
+
+  TestWorldFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      FunctionName: !Sub "${Stage}-${ServiceName}-test-world-lambda"
+      Description: Sample world Lambda function (API)
+      CodeUri: outputs/lambda/go_world.zip
+      MemorySize: 128
+      Timeout: 30
+      Role: !If
+        - CreateRole
+        - !GetAtt LambdaExecutionRole.Arn
+        - !Ref ExistingLambdaRoleArn
+      VpcConfig: !If
+        - HasVpc
+        - SubnetIds: !Ref VpcSubnetIds
+          SecurityGroupIds: !Ref VpcSecurityGroupIds
+        - !Ref AWS::NoValue
+      Events:
+        TestWorldApiEvent:
+          Type: Api
+          Properties:
+            RestApiId: !Ref Api
+            Path: /world
+            Method: GET
+
+  TestScheduledTaskFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      FunctionName: !Sub "${Stage}-${ServiceName}-test-scheduled-task-lambda"
+      Description: Sample scheduled Lambda function (EventBridge Scheduler)
+      CodeUri: outputs/lambda/go_scheduled-task.zip
+      MemorySize: 256
+      Timeout: 300
+      Role: !If
+        - CreateRole
+        - !GetAtt LambdaExecutionRole.Arn
+        - !Ref ExistingLambdaRoleArn
+      VpcConfig: !If
+        - HasVpc
+        - SubnetIds: !Ref VpcSubnetIds
+          SecurityGroupIds: !Ref VpcSecurityGroupIds
+        - !Ref AWS::NoValue
+      Environment:
+        Variables:
+          TASK_TYPE: "scheduled"
+      Events:
+        TestScheduledTaskScheduleV21Event:
+          Type: ScheduleV2
+          Properties:
+            Name: !Sub "${Stage}-${ServiceName}-test-scheduled-task-hourly-scheduler"
+            ScheduleExpression: rate(1 hour)
+            State: DISABLED
+            RoleArn: !If
+              - CreateRole
+              - !GetAtt SchedulerExecutionRole.Arn
+              - !Ref ExistingSchedulerRoleArn
+            Description: Run every hour
+            ScheduleExpressionTimezone: Asia/Tokyo
+            RetryPolicy:
+              MaximumRetryAttempts: 2
+              MaximumEventAgeInSeconds: 3600
+        TestScheduledTaskScheduleV22Event:
+          Type: ScheduleV2
+          Properties:
+            Name: !Sub "${Stage}-${ServiceName}-test-scheduled-task-daily-scheduler"
+            ScheduleExpression: cron(0 2 * * ? *)
+            State: DISABLED
+            RoleArn: !If
+              - CreateRole
+              - !GetAtt SchedulerExecutionRole.Arn
+              - !Ref ExistingSchedulerRoleArn
+            Description: Daily at 2:00 AM JST
+            ScheduleExpressionTimezone: Asia/Tokyo
+
+
+##########################################################################
+# Outputs
+##########################################################################
+Outputs:
+  ApiEndpoint:
+    Description: "API endpoint URL"
+    Value: !Sub "https://${Api}.execute-api.${AWS::Region}.amazonaws.com/${Stage}"
+  ApiKeyId:
+    Description: "API Key ID (copy: aws apigateway get-api-key --api-key <ApiKeyId> --include-value --query value --output text)"
+    Value: !Ref ApiApiKey
+  ApiId:
+    Value: !Ref Api
+    Export:
+      Name: !Sub "${Stage}-${ServiceName}-api-id"
+  CurlExample:
+    Description: "Copy/paste test for /hello (auto fetch API key value)"
+    Value: !Sub |
+      ENDPOINT=https://${Api}.execute-api.${AWS::Region}.amazonaws.com/${Stage}
+      KEY=$(aws apigateway get-api-key --api-key=${ApiApiKey} --include-value --query=value --output=text)
+      curl -H "x-api-key: $KEY" "$ENDPOINT/hello"
+  CustomDomainUrl:
+    Condition: HasCustomDomain
+    Value: !Sub "https://${CustomDomainName}"
+  LambdaRoleArn:
+    Value: !If
+      - CreateRole
+      - !GetAtt LambdaExecutionRole.Arn
+      - !Ref ExistingLambdaRoleArn
