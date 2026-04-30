@@ -44,10 +44,6 @@ Parameters:
     Type: String
     Default: ""
     Description: "ACM certificate ARN for custom domain"
-  CustomDomainSecurityPolicy:
-    Type: String
-    Default: TLS_1_2
-    AllowedValues: [TLS_1_0, TLS_1_2]
   CustomDomainBasePath:
     Type: String
     Default: ""
@@ -112,6 +108,7 @@ Conditions:
   HasWaf: !Not [!Equals [!Ref WafAclArn, ""]]
   HasVpc: !Not [!Equals [!Select [0, !Ref VpcSubnetIds], ""]]
   HasCustomDomain: !Equals [!Ref CustomDomainEnabled, "true"]
+  IsEdgeEndpoint: !Equals [!Ref EndpointType, EDGE]
   CreateRole: !Equals [!Ref ExistingLambdaRoleArn, ""]
   HasAdditionalPolicies: !And
     - !Condition CreateRole
@@ -192,7 +189,10 @@ Resources:
     Properties:
       DomainName: !Ref CustomDomainName
       RegionalCertificateArn: !Ref CustomDomainCertificateArn
-      SecurityPolicy: !Ref CustomDomainSecurityPolicy
+      SecurityPolicy: !If
+        - IsEdgeEndpoint
+        - SecurityPolicy_TLS13_2025_EDGE
+        - SecurityPolicy_TLS13_1_2_PFS_PQ_2025_09
       EndpointConfiguration:
         Types:
           - !Ref EndpointType
