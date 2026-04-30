@@ -95,6 +95,22 @@ Parameters:
   LogRetentionInDays:
     Type: Number
     Default: 14
+  # Logging
+  LambdaLogFormat:
+    Type: String
+    Default: JSON
+    AllowedValues: [JSON, Text]
+    Description: "Lambda log format (JSON recommended for structured logging)"
+  LambdaApplicationLogLevel:
+    Type: String
+    Default: INFO
+    AllowedValues: [TRACE, DEBUG, INFO, WARN, ERROR, FATAL]
+    Description: "Application log level (effective only when LogFormat is JSON)"
+  LambdaSystemLogLevel:
+    Type: String
+    Default: WARN
+    AllowedValues: [DEBUG, INFO, WARN]
+    Description: "System log level (effective only when LogFormat is JSON)"
   # Deploy
   DeploymentBucketName:
     Type: String
@@ -126,6 +142,10 @@ Globals:
     Timeout: !Ref DefaultTimeout
     Tracing: Active
     Handler: bootstrap
+    LoggingConfig:
+      LogFormat: !Ref LambdaLogFormat
+      ApplicationLogLevel: !Ref LambdaApplicationLogLevel
+      SystemLogLevel: !Ref LambdaSystemLogLevel
     Environment:
       Variables:
         ENV: !Ref Stage
@@ -272,9 +292,35 @@ Resources:
                   - lambda:InvokeFunction
                 Resource: !Sub "arn:aws:lambda:${AWS::Region}:${AWS::AccountId}:function:${Stage}-${ServiceName}-*"
 
+  # ---- Lambda CloudWatch Log Groups ----
+  TestHelloFunctionLogGroup:
+    Type: AWS::Logs::LogGroup
+    DeletionPolicy: Retain
+    UpdateReplacePolicy: Retain
+    Properties:
+      LogGroupName: !Sub "/aws/lambda/${Stage}-${ServiceName}-test-hello-lambda"
+      RetentionInDays: !Ref LogRetentionInDays
+
+  TestWorldFunctionLogGroup:
+    Type: AWS::Logs::LogGroup
+    DeletionPolicy: Retain
+    UpdateReplacePolicy: Retain
+    Properties:
+      LogGroupName: !Sub "/aws/lambda/${Stage}-${ServiceName}-test-world-lambda"
+      RetentionInDays: !Ref LogRetentionInDays
+
+  TestScheduledTaskFunctionLogGroup:
+    Type: AWS::Logs::LogGroup
+    DeletionPolicy: Retain
+    UpdateReplacePolicy: Retain
+    Properties:
+      LogGroupName: !Sub "/aws/lambda/${Stage}-${ServiceName}-test-scheduled-task-lambda"
+      RetentionInDays: !Ref LogRetentionInDays
+
   # ---- Lambda Functions ----
   TestHelloFunction:
     Type: AWS::Serverless::Function
+    DependsOn: TestHelloFunctionLogGroup
     Properties:
       FunctionName: !Sub "${Stage}-${ServiceName}-test-hello-lambda"
       Description: Sample hello Lambda function (API + environment variables)
@@ -304,6 +350,7 @@ Resources:
 
   TestWorldFunction:
     Type: AWS::Serverless::Function
+    DependsOn: TestWorldFunctionLogGroup
     Properties:
       FunctionName: !Sub "${Stage}-${ServiceName}-test-world-lambda"
       Description: Sample world Lambda function (API)
@@ -329,6 +376,7 @@ Resources:
 
   TestScheduledTaskFunction:
     Type: AWS::Serverless::Function
+    DependsOn: TestScheduledTaskFunctionLogGroup
     Properties:
       FunctionName: !Sub "${Stage}-${ServiceName}-test-scheduled-task-lambda"
       Description: Sample scheduled Lambda function (EventBridge Scheduler)
