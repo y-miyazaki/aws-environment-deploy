@@ -19,7 +19,7 @@ This specification applies to:
 ## Source of Truth and Priority
 
 Priority order for technical decisions:
-1. `docs/SPEC.md` (this file)
+1. `docs/specification.md` (this file)
 2. Other technical docs under `docs/` that define explicit rules
 3. Implementation in code (`ecs/`, `lambda/`, `scripts/terraform/`)
 4. User-facing guidance in `README.md`

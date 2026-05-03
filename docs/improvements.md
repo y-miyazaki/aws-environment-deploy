@@ -41,7 +41,7 @@
 
 #### New Documentation Files
 
-1. **docs/TROUBLESHOOTING.md**
+1. **docs/troubleshooting.md**
    - Common deployment issues and solutions
    - Configuration error troubleshooting
    - Network and connectivity issues
@@ -50,7 +50,7 @@
    - Monitoring issues
    - Debug commands reference
 
-2. **docs/MONITORING.md**
+2. **docs/monitoring.md**
    - CloudWatch Logs configuration with retention
    - Log Insights query examples
    - CloudWatch Alarms (CPU, Memory, Task Count)
@@ -61,7 +61,7 @@
    - Log aggregation best practices
    - Alerting strategy (Critical/Warning/Info)
 
-3. **docs/PERFORMANCE.md**
+3. **docs/performance.md**
    - Container image optimization (multi-stage builds)
    - ECS task right-sizing strategies
    - Memory reservation strategies
@@ -78,7 +78,7 @@
    - Added explicit naming convention guidance (`directory name = registry key = NAME`)
    - Updated troubleshooting examples to `--ext-str NAME=...`
 
-5. **docs/SPEC.md** (new)
+5. **docs/specification.md** (new)
    - Added normative specification and AI decision policy
    - Defined source-of-truth priority across docs/code/README
    - Documented naming invariants for service/task deployments

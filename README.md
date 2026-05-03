@@ -372,7 +372,7 @@ aws iam get-role-policy --role-name dev-test-ecs-task-execution-role
 
 ## 📚 Related Documentation
 
-- [Specification](docs/SPEC.md) - Normative rules for configuration and implementation decisions
+- [Specification](docs/specification.md) - Normative rules for configuration and implementation decisions
 - [Troubleshooting Guide](docs/TROUBLESHOOTING.md) - Common issues and solutions
 - [Monitoring & Observability](docs/MONITORING.md) - CloudWatch, X-Ray, and alerting
 - [Performance Optimization](docs/PERFORMANCE.md) - Optimization strategies and best practices
