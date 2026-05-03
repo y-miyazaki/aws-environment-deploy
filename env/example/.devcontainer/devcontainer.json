@@ -58,7 +58,6 @@
     "-v",
     "${localWorkspaceFolder}/env/common/tmp/.kiro:/home/vscode/.local/share/kiro-cli"
   ],
-
   "postCreateCommand": "/bin/bash env/common/scripts/init.sh",
   "workspaceMount": "",
   "workspaceFolder": "/workspace",
