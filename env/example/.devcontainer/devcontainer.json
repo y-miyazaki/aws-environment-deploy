@@ -40,7 +40,13 @@
         "timvaneker.serverless-snippets",
         "bufbuild.vscode-buf",
         // for Jsonnet environment
-        "grafana.vscode-jsonnet"
+        "grafana.vscode-jsonnet",
+        // for terraform extensions
+        "hashicorp.terraform",
+        // for Python environment
+        "charliermarsh.ruff",
+        "ms-python.mypy-type-checker",
+        "ms-python.python"
       ]
     }
   },
