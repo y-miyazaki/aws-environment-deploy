@@ -23,7 +23,7 @@ packages:
   - name: pre-commit/pre-commit@v4.6.0 # pre-commit framework
   # AWS related tools
   - name: aws/aws-cli@2.34.47 # AWS CLI
-  - name: aws/aws-sam-cli@v1.160.0 # SAM CLI tool
+  - name: aws/aws-sam-cli@v1.160.1 # SAM CLI tool
   - name: kayac/ecspresso@v2.8.3 # ECS deployment tool
   - name: Songmu/ecschedule@v0.18.2 # ECS scheduled tasks deployment tool
   # GitHub related tools
@@ -34,7 +34,7 @@ packages:
   - name: suzuki-shunsuke/ghalint@v1.5.6 # GitHub Actions linter
   - name: suzuki-shunsuke/ghatm@v1.0.0 # auto-set timeout-minutes for GitHub Actions jobs
   - name: suzuki-shunsuke/pinact@v3.10.0 # GitHub Actions pinning tool
-  - name: zizmorcore/zizmor@v1.24.1 # GitHub Actions security auditor
+  - name: zizmorcore/zizmor@v1.25.0 # GitHub Actions security auditor
   # Go related tools
   - name: air-verse/air@v1.65.1 # live reload
   - name: bufbuild/buf@v1.69.0 # protobuf linter and formatter
