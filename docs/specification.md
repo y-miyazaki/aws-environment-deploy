@@ -115,4 +115,4 @@ When introducing a new rule:
 1. Update this spec first
 2. Align implementation
 3. Align `README.md` examples and references
-4. Record rationale in `docs/IMPROVEMENTS.md` when relevant
+4. Record rationale in `docs/improvements.md` when relevant
