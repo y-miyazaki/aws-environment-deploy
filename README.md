@@ -7,36 +7,38 @@
 <!-- omit in toc -->
 ## Table of Contents
 - [aws-environment-deploy](#aws-environment-deploy)
-  - [📁 Project Structure](#-project-structure)
-  - [🚀 Quick Start](#-quick-start)
+  - [Project Structure](#project-structure)
+  - [Quick Start](#quick-start)
     - [Prerequisites](#prerequisites)
     - [Deploy ECS Service](#deploy-ecs-service)
     - [Deploy Lambda](#deploy-lambda)
-  - [📝 Creating a New ECS Service](#-creating-a-new-ecs-service)
+    - [Naming Convention (Required)](#naming-convention-required)
+  - [Creating a New ECS Service](#creating-a-new-ecs-service)
     - [1. Copy Service Directory](#1-copy-service-directory)
     - [2. Edit base.jsonnet](#2-edit-basejsonnet)
     - [3. Customize Environment Settings](#3-customize-environment-settings)
     - [4. Register in registry.jsonnet](#4-register-in-registryjsonnet)
-  - [📅 Creating a New ECS Scheduled Task](#-creating-a-new-ecs-scheduled-task)
+  - [Creating a New ECS Scheduled Task](#creating-a-new-ecs-scheduled-task)
     - [1. Copy Task Directory](#1-copy-task-directory)
     - [2. Edit base.jsonnet](#2-edit-basejsonnet-1)
-    - [3. Configure Schedule in env<env>.jsonnet](#3-configure-schedule-in-envenvjsonnet)
+    - [3. Configure Schedule in env/{env}.jsonnet](#3-configure-schedule-in-envenvjsonnet)
     - [4. Deploy Scheduled Task](#4-deploy-scheduled-task)
-  - [🔧 Creating a New Lambda Function](#-creating-a-new-lambda-function)
+  - [Creating a New Lambda Function](#creating-a-new-lambda-function)
     - [1. Add Function to template.yaml](#1-add-function-to-templateyaml)
     - [2. Update samconfig.toml](#2-update-samconfigtoml)
-  - [⚙️ Configuration Reference](#️-configuration-reference)
+    - [Naming Convention (Lambda)](#naming-convention-lambda)
+  - [Configuration Reference](#configuration-reference)
     - [Environment Variables](#environment-variables)
     - [Resource Settings](#resource-settings)
-  - [🔒 Security](#-security)
+  - [Security](#security)
     - [Secrets Manager Integration](#secrets-manager-integration)
     - [IAM Roles](#iam-roles)
-  - [🛠️ Troubleshooting](#️-troubleshooting)
+  - [Troubleshooting](#troubleshooting)
     - [Deployment Fails](#deployment-fails)
     - [Secrets Manager Errors](#secrets-manager-errors)
-  - [📚 Related Documentation](#-related-documentation)
+  - [Related Documentation](#related-documentation)
 
-## 📁 Project Structure
+## Project Structure
 
 ```
 .
@@ -61,7 +63,7 @@
 └── test/                   # Test code
 ```
 
-## 🚀 Quick Start
+## Quick Start
 
 ### Prerequisites
 
@@ -133,7 +135,7 @@ Example: `ecs/ecs-service/test-server` -> registry key `'test-server'` -> `NAME=
 
 If they do not match, deployment scripts fail to resolve `registry.services[name][env]` or `registry.scheduled_tasks[name][env]`.
 
-## 📝 Creating a New ECS Service
+## Creating a New ECS Service
 
 ### 1. Copy Service Directory
 
@@ -187,7 +189,7 @@ services: {
 
 Note: the service key (`'your-service'`) must match the directory name (`ecs/ecs-service/your-service`).
 
-## 📅 Creating a New ECS Scheduled Task
+## Creating a New ECS Scheduled Task
 
 ### 1. Copy Task Directory
 
@@ -207,7 +209,7 @@ local base = {
 };
 ```
 
-### 3. Configure Schedule in env/<env>.jsonnet
+### 3. Configure Schedule in env/{env}.jsonnet
 
 ```jsonnet
 // env/dev.jsonnet
@@ -246,7 +248,7 @@ base {
 
 Note: the scheduled task key (`'your-batch'`) must match the directory name (`ecs/ecs-scheduled-task/your-batch`).
 
-## 🔧 Creating a New Lambda Function
+## Creating a New Lambda Function
 
 Lambda functions are deployed using [AWS SAM](https://docs.aws.amazon.com/serverless-application-model/). Configuration lives under `lambda/`.
 
@@ -291,7 +293,7 @@ Update `lambda/samconfig.toml` if environment-specific parameters need changes.
 
 `Stage` and `ServiceName` are defined in `samconfig.toml` per environment.
 
-## ⚙️ Configuration Reference
+## Configuration Reference
 
 ### Environment Variables
 
@@ -320,7 +322,7 @@ auto_scaling: {
 }
 ```
 
-## 🔒 Security
+## Security
 
 ### Secrets Manager Integration
 
@@ -340,7 +342,7 @@ secrets: [
 - **Task Role**: AWS permissions used by containers
 - **Execution Role**: Permissions for ECS agent (ECR pull, CloudWatch Logs, etc.)
 
-## 🛠️ Troubleshooting
+## Troubleshooting
 
 ### Deployment Fails
 
@@ -370,7 +372,7 @@ aws secretsmanager describe-secret --secret-id dev/db/credentials
 aws iam get-role-policy --role-name dev-test-ecs-task-execution-role
 ```
 
-## 📚 Related Documentation
+## Related Documentation
 
 - [Specification](docs/specification.md) - Normative rules for configuration and implementation decisions
 - [Troubleshooting Guide](docs/TROUBLESHOOTING.md) - Common issues and solutions
